@@ -1,2 +1,2 @@
-# scripts
+# Scripts
 SQL Server scripts
