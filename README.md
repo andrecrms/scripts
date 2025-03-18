@@ -1,2 +1,2 @@
 # Scripts
-SQL Server scripts
+SQL Server\PowerShell scripts
