@@ -33,7 +33,7 @@ have its own characteristics. This script will not change nothing in the environ
 
 
 # Prompt user for server input
-$ServerName = Read-Host "Enter the server name (or press Enter to use the list from C:\temp\serverlist.txt)"
+$ServerName = Read-Host "Enter the server name (or press Enter to use the list from C:\temp\serverlist.txt)" # make sure to have just one server per row inside this file!
 
 # Ensure '.' is treated as 'localhost'
 if ($ServerName -eq ".") {
