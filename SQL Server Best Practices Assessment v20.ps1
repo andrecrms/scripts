@@ -189,7 +189,7 @@ CREATE TABLE #CheckDBInfo (
 );
 
 DECLARE db_cursor CURSOR FOR
-SELECT name FROM sys.databases WHERE state_desc = 'ONLINE' AND name not in ('tempdb', 'DBATools');
+SELECT name FROM sys.databases WHERE state_desc = 'ONLINE' AND name not in ('tempdb');
 
 OPEN db_cursor;
 FETCH NEXT FROM db_cursor INTO @dbname;
@@ -248,7 +248,7 @@ DECLARE @dbName SYSNAME, @sql NVARCHAR(MAX);
 DECLARE db_cursor CURSOR FOR 
 SELECT name 
 FROM sys.databases 
-WHERE state_desc = 'ONLINE' AND name not in ('master','model','msdb','tempdb','DBATools');
+WHERE state_desc = 'ONLINE' AND name not in ('master','model','msdb','tempdb');
 
 OPEN db_cursor;
 FETCH NEXT FROM db_cursor INTO @dbName;
@@ -297,7 +297,7 @@ SELECT
     ISNULL(bd.LastLogBackup, '1900-01-01 00:00:00.000') AS LastLogBackup
 FROM sys.databases d
 LEFT JOIN BackupData bd ON d.name = bd.database_name
-WHERE d.name NOT IN ('tempdb', 'model', 'DBATools')
+WHERE d.name NOT IN ('tempdb', 'model')
 ORDER BY d.name;
 "@
 
