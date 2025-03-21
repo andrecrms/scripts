@@ -18,8 +18,9 @@ Write-Host @"
 # Tested on: SQL Server 2014 to 2022.
 #
 # Author: Andre Cesar Rodrigues 
-# LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues.
+# LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
+# GitHub: https://github.com/andrecrms
 # Last modified: 03/21/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
