@@ -4,7 +4,7 @@ Hello! I will use this repo to insert some SQL and Powershell scripts.
 
 **03/21/2025:**
 
-The first PowerShell script I uploaded is called **[SQL Server Best Practices Assessment v20.ps1.]([url](https://github.com/andrecrms/scripts/blob/main/SQL%20Server%20Best%20Practices%20Assessment%20v20.ps1))** It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
+The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v20.ps1** It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
 1. Instance configs (Optimize For Ad Hoc workloads, Remote Dedicated Admin Connections and Backup Compression).
 2. Min and Max Server Memory.
