@@ -14,6 +14,7 @@ Write-Host @"
 # Instance settings, checkdb history, backup history, VLFs, autogrowth, trace flags, tempdb file checks, database options and compatibility levels.
 # This script uses some queries from the BPCheck script to evaluate some best practices: https://github.com/microsoft/tigertoolbox/tree/master/BPCheck
 # A quick summary of the findings will be presented at the end of the script, but all detailed results will be placed in a CSV file.
+# Each status column will be either OK or REVIEW, when marked as REVIEW, navigate to the right of the sheet to understand why it was marked that way.
 # A log of the execution will also be generated in the same directory as the csv file mentioned above.
 # Tested on: SQL Server 2014 to 2022.
 #
