@@ -18,4 +18,7 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 10. Databases Compatibility Level.
 11. TempDB Files checks (autogrow, size, number of files)
 
+**Test it before run it into your production environment.
+
 Feel free to download and modify this script to suit your needs. If you use it publicly, please credit the author =D. Thanks!
+**
