@@ -2,7 +2,9 @@
 
 Hello! I will use this repo to insert some SQL and Powershell scripts. 
 
-The first PowerShell script I uploaded its useful to perform a quick best practices check in your current SQL Server enviromment, some of the verifications includes:
+**03/21/2025:**
+
+The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v20.ps1** (https://github.com/andrecrms/scripts/blob/main/SQL%20Server%20Best%20Practices%20Assessment%20v20.ps1). It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
 1. Instance configs (Optimize For Ad Hoc workloads, Remote Dedicated Admin Connections and Backup Compression).
 2. Min and Max Server Memory.
@@ -15,3 +17,5 @@ The first PowerShell script I uploaded its useful to perform a quick best practi
 9. CheckDB execution in the last 7 days.
 10. Databases Compatibility Level.
 11. TempDB Files checks (autogrow, size, number of files)
+
+**Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
