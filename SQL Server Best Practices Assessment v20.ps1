@@ -17,7 +17,9 @@ Write-Host @"
 # A log of the execution will also be generated in the same directory as the csv file mentioned above.
 # Tested on: SQL Server 2014 to 2022.
 #
-# Author: Andre Cesar Rodrigues (andrecr).
+# Author: Andre Cesar Rodrigues 
+# LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues.
+# Blog: http://sqlmagu.blogspot.com.br
 # Last modified: 03/21/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
