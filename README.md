@@ -17,5 +17,10 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 9. CheckDB execution in the last 7 days.
 10. Databases Compatibility Level.
 11. TempDB Files checks (autogrow, size, number of files, for this last one, in case of SQL Server 2022 or higher, in case of 1 file, column will be marked as OK)
+12. Trace Flags, check will vary according to SQL version:
+    For SQL Server 2012 and 2014, if trace flags 1118 and 4199 are off, script will mark status as REVIEW.
+    For SQL Server 2016, if trace flags 4199 and 7745 are off, script will mark status as REVIEW.
+    For SQL Server 2017 and 2019, if 4199, 7745, 12310 are off, script will mark status as REVIEW.
+    For SQL Server 2022, 4199, 7745, 12656 and 12618 are off, script will mark status as REVIEW.
 
 **Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
