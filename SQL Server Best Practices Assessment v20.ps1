@@ -105,8 +105,8 @@ foreach ($entry in $serverEntries) {
 
                 $jobResults = @()
 
-                # Define the main server configuration query
-                $mainQuery = @"
+# Main config query
+$mainQuery = @"
 SELECT 
     SERVERPROPERTY('ServerName') AS [Server Name],
     SERVERPROPERTY('ProductVersion') AS [SQL Build Number],
@@ -127,8 +127,8 @@ WHERE name IN (
 ) OR name LIKE '%backup compression%'
 "@
 
-                # Define compatibility level query
-                $compatQuery = @"
+# Compatibility level query
+$compatQuery = @"
 SELECT 
     d.name AS [Database Name],
     d.compatibility_level AS [Compatibility Level],
@@ -139,8 +139,8 @@ FROM sys.databases d
 WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('master', 'tempdb', 'model', 'msdb')
 "@
 
-                # Define AutoGrow query for each database with the correct columns
-                $autoGrowQuery = @"
+# AutoGrow query
+$autoGrowQuery = @"
 SELECT 
     mf.name AS [File Name],
     mf.physical_name AS [Physical Name],
@@ -156,8 +156,8 @@ SELECT
 FROM sys.master_files mf
 "@
 
-                # Define Trace Flag query for each database with the correct columns
-                $traceflagquery = @"
+# Trace Flag query
+$traceflagquery = @"
 -- Create a temporary table with the appropriate columns for storing trace status
 CREATE TABLE #TraceStatus (
     TraceFlag INT,
@@ -178,8 +178,8 @@ DROP TABLE #TraceStatus;
 GO
 "@
 
-                # Query to check last CHECKDB execution
-                $checkDBQuery = @"
+# CHECKDB query
+$checkDBQuery = @"
 DECLARE @dbname NVARCHAR(256), @sql NVARCHAR(MAX);
 
 -- Create a temporary table to store CHECKDB results
@@ -236,7 +236,8 @@ ORDER BY LastCheckDB ASC;
 DROP TABLE #CheckDBInfo;
 "@
 
-                $vlfQuery = @"
+# VLF Query
+$vlfQuery = @"
 -- Create a temporary table to store VLF counts per database
 CREATE TABLE #VLFInfo (
     DatabaseName SYSNAME,
@@ -280,7 +281,8 @@ ORDER BY VLFCount DESC;
 DROP TABLE #VLFInfo;
 "@
 
-                $BkpQuery = @"
+# Backup query
+$BkpQuery = @"
 WITH BackupData AS (
     -- Get latest full backup and log backup for each database
     SELECT 
@@ -301,7 +303,8 @@ WHERE d.name NOT IN ('tempdb', 'model')
 ORDER BY d.name;
 "@
 
-                $maxdopquery = @"
+# MaxDop query
+$maxdopquery = @"
 DECLARE @sqlmajorver INT;
 DECLARE @numa INT;
 DECLARE @affined_cpus INT;
@@ -361,8 +364,8 @@ SELECT
     @current_maxdop AS [Current_MaxDOP]
 "@
 
-                # Define TempDB Query
-                $tempDBFileSizeQuery = @"
+# TempDB Query
+$tempDBFileSizeQuery = @"
 SELECT 
     name AS FileName,
     type_desc AS FileType,
@@ -372,15 +375,15 @@ FROM sys.master_files
 WHERE database_id = DB_ID('tempdb');
 "@
 
-                # Define trace flag lists based on SQL version
-                $traceFlagsByVersion = @{
-                    '11%' = @('4199')
-                    '12%' = @('4199', '1118')
-                    '13%' = @('4199', '7745')
-                    '14%' = @('4199', '7745', '12310')
-                    '15%' = @('4199', '7745', '12310')
-                    '16%' = @('4199', '7745', '12656', '12618')
-                }
+# Define trace flag lists based on SQL version
+$traceFlagsByVersion = @{
+    '11%' = @('4199', '1118')
+    '12%' = @('4199', '1118')
+    '13%' = @('4199', '7745')
+    '14%' = @('4199', '7745', '12310')
+    '15%' = @('4199', '7745', '12310')
+    '16%' = @('4199', '7745', '12656', '12618')
+}
 
 
                 # Loop through each instance and execute the queries
@@ -390,50 +393,40 @@ WHERE database_id = DB_ID('tempdb');
                     Try {
                         Write-Host "Running queries on: $sqlInstance"
 
-                        # Executing queries...
+                        # Execute main config query
                         $currentQuery = "Main Query"
-
-                        # Execute the main query
                         $mainResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $mainQuery -QueryTimeout 65535 -ErrorAction Stop
 
+                        #Execute the compatibility level query
                         $currentQuery = "Compatibility Level Query"
-
-                        # Execute the compatibility level query
                         $compatResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $compatQuery -QueryTimeout 65535 -ErrorAction Stop
 
-                        $currentQuery = "AutoGrow Query"
-
                         # Execute the AutoGrow query
+                        $currentQuery = "AutoGrow Query"
                         $autoGrowResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $autoGrowQuery -QueryTimeout 65535 -ErrorAction Stop
 
-                        $currentQuery = "Trace Flag Query"
-
                         # Execute Trace Flag query
+                        $currentQuery = "Trace Flag Query"
                         $enabledFlags = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $traceflagquery -QueryTimeout 65535 -ErrorAction Stop
                     
-                        $currentQuery = "CheckDB Query"
-
                         # Execute CheckDB query
+                        $currentQuery = "CheckDB Query"
                         $checkDBResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $checkDBQuery -QueryTimeout 65535 -ErrorAction Stop
 
-                        $currentQuery = "VLFs Query"
-
                         # Execute VLFs query
+                        $currentQuery = "VLFs Query"
                         $vlfResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $vlfQuery -QueryTimeout 65535 -ErrorAction Stop
 
-                        $currentQuery = "Backup Query"
-
                         # Execute Backup query
+                        $currentQuery = "Backup Query"
                         $backupResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $BkpQuery -QueryTimeout 65535 -ErrorAction Stop
-
-                        $currentQuery = "MaxDop Query"
-
+ 
                         # Execute MaxDop Query
+                        $currentQuery = "MaxDop Query"
                         $maxdopresult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $maxdopquery -QueryTimeout 65535 -ErrorAction Stop
 
-                        $currentQuery = "TempDB Query"
-
                         # Execute TempDB Query
+                        $currentQuery = "TempDB Query"
                         $tempDBFileSizeResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $tempDBFileSizeQuery -QueryTimeout 65535 -ErrorAction Stop
 
                     }
@@ -548,7 +541,6 @@ WHERE database_id = DB_ID('tempdb');
                     }
 
                     # Check if all databases are in SIMPLE recovery model
-                    #$simpleRecoveryDatabases = $backupResult | Where-Object { $_.RecoveryModel -eq 'SIMPLE' }
                     $nonSimpleDatabases = $backupResult | Where-Object { $_.RecoveryModel -ne 'SIMPLE' }
 
                     # If all databases are SIMPLE, set a special message
@@ -629,6 +621,7 @@ WHERE database_id = DB_ID('tempdb');
                             $serverNameWithInstance = $result.'Server Name'  # Example: ServerName\INSTANCE_NAME
                             $serverName = $serverNameWithInstance -replace '\\.*$', ''  # Keep only the server name part
                             $instanceNameOnly = $serverNameWithInstance -replace '^[^\\]*\\', ''  # Extract instance name
+                            
                             # If the instance name is the same as the server name, set it to "DEFAULT"
                             if ($instanceNameOnly -eq $serverName) {
                                 $instanceNameOnly = 'DEFAULT'
@@ -660,14 +653,13 @@ WHERE database_id = DB_ID('tempdb');
                                 else {
                                     $result.'Backup Compression Default'
                                 }
-                                # "Backup Compression Default"  = $result.'Backup Compression Default'
                                 "Remote Admin Connections"                    = $result.'Remote Admin Connections'
                                 "TempDB Data Files"                           = $result.'TempDB Data Files'
                                 "DBs with missing CHECKDB in the last 7 days" = $missingCheckDBMessage
                                 "CHECKDB Status"                              = $checkDBStatus
                             }
 
-                            # Calculate recommended max memory (75% of total memory)
+                            # Calculate recommended max memory (75% of total server memory)
                             $recommendedMaxMemory = [math]::Round($result.'Total Server Memory (MB)' * 0.75, 0)
 
                             # Initialize memoryStatus as "REVIEW"
@@ -728,12 +720,12 @@ WHERE database_id = DB_ID('tempdb');
                                 $compatLevels -join ', '
                             }
 
-                            # New checks for Auto Create Stats, Auto Update Stats, and Page Verify
+                            # Checks for Auto Create Stats, Auto Update Stats, and Page Verify
                             $autoUpdateStatsDatabases = $compatResult | Where-Object { $_.'Auto Update Stats' -eq 0 }
                             $autoCreateStatsDatabases = $compatResult | Where-Object { $_.'Auto Create Stats' -eq 0 }
                             $pageVerifyDatabases = $compatResult | Where-Object { $_.'Page Verify' -ne "CHECKSUM" }
 
-                            # Combine databases without proper settings
+                            # List databases without proper settings
                             $divergentDatabases = @()
                             $divergentDatabases += $autoUpdateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Update Stats OFF)" }
                             $divergentDatabases += $autoCreateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Create Stats OFF)" }
@@ -918,7 +910,7 @@ WHERE database_id = DB_ID('tempdb');
 # Ensure the progress bar reaches 100% when completed
 Write-Progress -Activity "Processing SQL Servers" -Status "Completed" -PercentComplete 100 -Completed
 
-# **Wait for all jobs to complete (only if jobs exist)**
+# Wait for all jobs to complete (only if jobs exist)
 if ($Jobs.Count -gt 0) {
     Write-Host "Waiting for all jobs to finish..."
     Wait-Job -Job $Jobs
@@ -930,7 +922,7 @@ else {
     Exit 1  # Exit with an error code to indicate failure
 }
 
-# **Receive results and store them**
+# Receive results and store them
 $Jobs | ForEach-Object {
     $JobResult = Receive-Job -Job $_
     if ($JobResult) {
@@ -939,10 +931,10 @@ $Jobs | ForEach-Object {
     }
 }
 
-# **Remove completed jobs**
+# Remove completed jobs
 $Jobs | Remove-Job
 
-# **Prepare CSV Output**
+# Prepare CSV Output
 $executionDate = Get-Date -Format "yyyyMMdd_HHmmss"
 $filePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Results_$executionDate.csv"
 
@@ -999,8 +991,8 @@ $uniqueResults = $filteredResults | Group-Object -Property "Server Name", "SQL I
 # Export filtered results to CSV with the dynamic filename
 $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 
-# **Generate Summary of OK and REVIEW Counts by Status Column**
-# **Prepare CSV Output**
+# Generate Summary of OK and REVIEW Counts by Status Column
+# Prepare CSV Output
 $executionDate = Get-Date -Format "yyyyMMdd_HHmmss"
 $filePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Results_$executionDate.csv"
 
@@ -1057,7 +1049,7 @@ $uniqueResults = $filteredResults | Group-Object -Property "Server Name", "SQL I
 # Export filtered results to CSV with the dynamic filename
 $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 
-# **Generate Summary of OK and REVIEW Counts by Status Column**
+# Generate Summary of OK and REVIEW Counts by Status Column
 Write-Host "Generating Summary of Assessment Results..."
 
 # Define columns that contain status checks
