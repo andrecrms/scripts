@@ -22,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 03/21/2025.
+# Last modified: 03/23/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -388,7 +388,49 @@ $traceFlagsByVersion = @{
 
                 # Loop through each instance and execute the queries
                 foreach ($instanceName in $instanceNames) {
+                    
+# Inline logic to retrieve SQL Server port from registry (no function)
+try {
+    # Define the registry base path for SQL Server
+    $basePath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server"
+    
+    # Initialize the port variable
+    $port = "1433" # Default port
+
+    # Dynamically find the instance ID that matches the given instance name
+    $instanceID = Get-ChildItem -Path $basePath -ErrorAction Stop |
+                  Where-Object { $_.PSChildName -match "^MSSQL.*\.$instanceName$" } |
+                  Select-Object -ExpandProperty PSChildName -ErrorAction Stop
+
+    if ($instanceID) {
+        # Construct the full registry path for the TCP port
+        $tcpKeyPath = "$basePath\$instanceID\MSSQLServer\SuperSocketNetLib\Tcp\IPAll"
+        try {
+            # Read the port from the registry
+            $port = (Get-ItemProperty -Path $tcpKeyPath -Name TcpPort -ErrorAction Stop).TcpPort
+            if (-not $port) {
+                Write-Host "No specific port found in the registry for instance $instanceName, assuming default port 1433."
+                $port = "1433"
+            }
+            #Write-Host "SQL Server port for instance $instanceName is $port."
+        } catch {
+            Write-Host "Error retrieving SQL Server port from registry path $tcpKeyPath. Assuming default port 1433."
+            $port = "1433"
+        }
+    } else {
+        Write-Host "No instance ID found matching the name $instanceName. Assuming default port 1433."
+        $port = "1433"
+    }
+} catch {
+    Write-Host "Error retrieving SQL Server port from registry for instance $instanceName. Assuming default port 1433."
+    $port = "1433"
+}
+
                     $sqlInstance = if ($instanceName -eq "MSSQLSERVER") { $vmName } else { "$vmName\$instanceName" }
+                    if ($port -ne "1433") {
+                        $sqlInstance = "$sqlInstance,$port"
+                    }
+                    Write-Host "Connecting to SQL Server instance: $sqlInstance"
 
                     Try {
                         Write-Host "Running queries on: $sqlInstance"
