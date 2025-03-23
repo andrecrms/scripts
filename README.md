@@ -22,5 +22,6 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
     For SQL Server 2016, if trace flags 4199 and 7745 are off, script will mark status as REVIEW.
     For SQL Server 2017 and 2019, if 4199, 7745, 12310 are off, script will mark status as REVIEW.
     For SQL Server 2022, 4199, 7745, 12656 and 12618 are off, script will mark status as REVIEW.
+    If none of the trace flags are enabled or if any of them are missing, the column will also be marked as REVIEW.
 
 **Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
