@@ -375,19 +375,8 @@ FROM sys.master_files
 WHERE database_id = DB_ID('tempdb');
 "@
 
-# Define trace flag lists based on SQL version
-$traceFlagsByVersion = @{
-    '11%' = @('4199', '1118')
-    '12%' = @('4199', '1118')
-    '13%' = @('4199', '7745')
-    '14%' = @('4199', '7745', '12310')
-    '15%' = @('4199', '7745', '12310')
-    '16%' = @('4199', '7745', '12656', '12618')
-}
-
-
-                # Loop through each instance and execute the queries
-                foreach ($instanceName in $instanceNames) {
+# Loop through each instance and execute the queries
+foreach ($instanceName in $instanceNames) {
                     
 # Inline logic to retrieve SQL Server port from registry (no function)
 try {
@@ -612,50 +601,7 @@ try {
                     $checkDBStatus = if ($missingCheckDB.Count -gt 0) { "REVIEW" } else { "OK" }
                     $missingCheckDBMessage = if ($missingCheckDB.Count -eq 0) { "All databases are OK" } else { $missingCheckDB -join ', ' }
 
-
-                    # Check if any trace flags are returned
-                    if ($enabledFlags -and $enabledFlags.TraceFlag) {
-                        $enabledFlagNames = $enabledFlags.TraceFlag
-                    }
-                    else {
-                        $enabledFlagNames = @()  # If no trace flags are returned, set it to an empty array
-                    }
-
-                    # Determine the required trace flags for the current SQL version
-                    $traceFlagList = $null
-                    $traceFlagStatus = "OK"
-
-                    foreach ($key in $traceFlagsByVersion.Keys) {
-                        if ($sqlVersion -like $key) {
-                            $traceFlagList = $traceFlagsByVersion[$key]
-                            break
-                        }
-                    }
-
-                    # If trace flags for the current SQL version are found
-                    if ($traceFlagList) {
-                        # Check if any required trace flags are missing
-                        $missingFlags = $traceFlagList | Where-Object { $_ -notin $enabledFlagNames }
-
-                        # If there are no enabled flags or if any required trace flags are missing
-                        if ($enabledFlagNames.Count -eq 0 -or $missingFlags.Count -gt 0) {
-                            $traceFlagStatus = "REVIEW"
-                        }
-                    }
-                    else {
-                        # If no trace flags are defined for the current version
-                        $traceFlagStatus = "REVIEW"
-                    }
-
-                    # Set the result for Trace Flag List
-                    $traceFlagListString = if ($enabledFlagNames.Count -gt 0) {
-                        [string]::Join(", ", $enabledFlagNames)
-                    }
-                    else {
-                        "No trace flags enabled"
-                    }
-
-                    # Process the main query results
+                     # Process the main query results
                     if (($mainResult -ne $null -and $mainResult.Count -gt 0) -or
                         ($compatResult -ne $null -and $compatResult.Count -gt 0) -or
                         ($autoGrowResult -ne $null -and $autoGrowResult.Count -gt 0)) {
@@ -699,6 +645,70 @@ try {
                                 "TempDB Data Files"                           = $result.'TempDB Data Files'
                                 "DBs with missing CHECKDB in the last 7 days" = $missingCheckDBMessage
                                 "CHECKDB Status"                              = $checkDBStatus
+                            }
+
+
+                            # Debugging output: Check the result object
+                            Write-Host "SQL Server Version: $($resultObject.'SQL Server Version')"
+                            Write-Host "SQL Build Number: $($resultObject.'SQL Build Number')"
+                            Write-Host "SQL Edition: $($resultObject.'SQL Edition')"
+
+                            # Trace Flag logic
+                            $traceFlagsByVersion = @{
+                                '11' = @(4199, 1118)    # SQL Server 2012
+                                '12' = @(4199, 1118)    # SQL Server 2014
+                                '13' = @(4199, 7745)    # SQL Server 2016
+                                '14' = @(4199, 7745, 12310)  # SQL Server 2017
+                                '15' = @(4199, 7745, 12310)  # SQL Server 2019
+                                '16' = @(4199, 7745, 12656, 12618)  # SQL Server 2022
+                            }
+
+                            # Extract the major version number from the SQL version string
+                            $majorVersion = ($result.'SQL Build Number' -split '\.')[0]
+                            Write-Host "Detected SQL Server Major Version: $majorVersion"
+
+                            # Initialize trace flag status
+                            $traceFlagStatus = "OK"
+                            $enabledFlagNames = @()  # Initialize as empty
+
+                            # Assume $enabledFlags is already populated from the trace flag query
+                            if ($enabledFlags -and $enabledFlags.TraceFlag) {
+                                $enabledFlagNames = $enabledFlags.TraceFlag | ForEach-Object { [int]$_ }  # Ensure trace flags are integers
+                            }
+
+                            # Determine the required trace flags for the current SQL version
+                            $traceFlagList = $null
+
+                            if ($traceFlagsByVersion.ContainsKey($majorVersion)) {
+                                $traceFlagList = $traceFlagsByVersion[$majorVersion]
+                            } else {
+                                Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
+                                $traceFlagStatus = "REVIEW"
+                            }
+
+                            # If trace flags for the current SQL version are found
+                            if ($traceFlagList) {
+                                # Check if any required trace flags are missing
+                                $missingFlags = $traceFlagList | Where-Object { [int]$_ -notin $enabledFlagNames }
+
+                                # If there are missing flags
+                                if ($missingFlags.Count -gt 0) {
+                                    $traceFlagStatus = "REVIEW"
+                                    Write-Host "Missing Trace Flags: $([string]::Join(', ', $missingFlags))" -ForegroundColor Yellow
+                                } else {
+                                    Write-Host "All required trace flags are present: $([string]::Join(', ', $traceFlagList))" -ForegroundColor Green
+                                }
+                            } else {
+                                # If no trace flags are defined for the current version
+                                $traceFlagStatus = "REVIEW"
+                                Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
+                            }
+
+                            # Set the result for Trace Flag List
+                            $traceFlagListString = if ($enabledFlagNames.Count -gt 0) {
+                                [string]::Join(", ", $enabledFlagNames)
+                            } else {
+                                "No trace flags enabled"
                             }
 
                             # Calculate recommended max memory (75% of total server memory)
