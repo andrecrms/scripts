@@ -647,12 +647,6 @@ try {
                                 "CHECKDB Status"                              = $checkDBStatus
                             }
 
-
-                            # Debugging output: Check the result object
-                            Write-Host "SQL Server Version: $($resultObject.'SQL Server Version')"
-                            Write-Host "SQL Build Number: $($resultObject.'SQL Build Number')"
-                            Write-Host "SQL Edition: $($resultObject.'SQL Edition')"
-
                             # Trace Flag logic
                             $traceFlagsByVersion = @{
                                 '11' = @(4199, 1118)    # SQL Server 2012
