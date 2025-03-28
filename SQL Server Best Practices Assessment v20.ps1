@@ -22,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 03/26/2025.
+# Last modified: 03/8/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -869,13 +869,13 @@ try {
                             $tempDBMultipleOf4 = ($totalTempDBDataFiles % 4 -eq 0)
 
                             # Determine recommended TempDB file count based on processors
-                            $recommendedTempDBFiles = 8  # Default recommendation
-                            if ($totalProcessors -eq 4) {
-                                $recommendedTempDBFiles = 2
-                            }
-                            elseif ($totalProcessors -eq 8) {
-                                $recommendedTempDBFiles = 4
-                            }
+							if ($totalProcessors -gt 8) {
+								$recommendedTempDBFiles = 4  # TempDB files should be between 4 and 8 if processors > 8
+							} elseif ($totalProcessors -eq 8) {
+								$recommendedTempDBFiles = 4  # TempDB files should be between 2 and 8 if processors == 8
+							} elseif ($totalProcessors -eq 4) {
+								$recommendedTempDBFiles = 2  # TempDB files should be between 2 and 4 if processors == 4
+							}
 
                             # Adjust recommendation for SQL Server 2022+
                             if ($serverVersion -ge 16 -and $totalTempDBDataFiles -eq 1) {
