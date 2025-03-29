@@ -22,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 03/8/2025.
+# Last modified: 03/29/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -398,20 +398,20 @@ try {
             # Read the port from the registry
             $port = (Get-ItemProperty -Path $tcpKeyPath -Name TcpPort -ErrorAction Stop).TcpPort
             if (-not $port) {
-                Write-Host "No specific port found in the registry for instance $instanceName, assuming default port 1433."
+                #Write-Host "No specific port found in the registry for instance $instanceName, assuming default port 1433."
                 $port = "1433"
             }
             #Write-Host "SQL Server port for instance $instanceName is $port."
         } catch {
-            Write-Host "Error retrieving SQL Server port from registry path $tcpKeyPath. Assuming default port 1433."
+            #Write-Host "Error retrieving SQL Server port from registry path $tcpKeyPath. Assuming default port 1433."
             $port = "1433"
         }
     } else {
-        Write-Host "No instance ID found matching the name $instanceName. Assuming default port 1433."
+        #Write-Host "No instance ID found matching the name $instanceName. Assuming default port 1433."
         $port = "1433"
     }
 } catch {
-    Write-Host "Error retrieving SQL Server port from registry for instance $instanceName. Assuming default port 1433."
+    #Write-Host "Error retrieving SQL Server port from registry for instance $instanceName. Assuming default port 1433."
     $port = "1433"
 }
 
@@ -419,10 +419,10 @@ try {
                     if ($port -ne "1433") {
                         $sqlInstance = "$sqlInstance,$port"
                     }
-                    Write-Host "Connecting to SQL Server instance: $sqlInstance"
+                    #Write-Host "Connecting to SQL Server instance: $sqlInstance"
 
                     Try {
-                        Write-Host "Running queries on: $sqlInstance"
+                        #Write-Host "Running queries on: $sqlInstance"
 
                         # Execute main config query
                         $currentQuery = "Main Query"
@@ -659,7 +659,7 @@ try {
 
                             # Extract the major version number from the SQL version string
                             $majorVersion = ($result.'SQL Build Number' -split '\.')[0]
-                            Write-Host "Detected SQL Server Major Version: $majorVersion"
+                            #Write-Host "Detected SQL Server Major Version: $majorVersion"
 
                             # Initialize trace flag status
                             $traceFlagStatus = "OK"
@@ -676,7 +676,7 @@ try {
                             if ($traceFlagsByVersion.ContainsKey($majorVersion)) {
                                 $traceFlagList = $traceFlagsByVersion[$majorVersion]
                             } else {
-                                Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
+                                #Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
                                 $traceFlagStatus = "REVIEW"
                             }
 
@@ -688,14 +688,14 @@ try {
                                 # If there are missing flags
                                 if ($missingFlags.Count -gt 0) {
                                     $traceFlagStatus = "REVIEW"
-                                    Write-Host "Missing Trace Flags: $([string]::Join(', ', $missingFlags))" -ForegroundColor Yellow
+                                    #Write-Host "Missing Trace Flags: $([string]::Join(', ', $missingFlags))" -ForegroundColor Yellow
                                 } else {
-                                    Write-Host "All required trace flags are present: $([string]::Join(', ', $traceFlagList))" -ForegroundColor Green
+                                    #Write-Host "All required trace flags are present: $([string]::Join(', ', $traceFlagList))" -ForegroundColor Green
                                 }
                             } else {
                                 # If no trace flags are defined for the current version
                                 $traceFlagStatus = "REVIEW"
-                                Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
+                                #Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
                             }
 
                             # Set the result for Trace Flag List
@@ -851,8 +851,8 @@ try {
 
                             #TempDB checks
                             # Extract SQL Server version
-                            $sqlVersionMajor = $result.'SQL Build Number' -split '\.' | Select-Object -First 1
-                            $serverVersion = [int]$sqlVersionMajor  # Convert to integer for comparison
+                            #$sqlVersionMajor = $result.'SQL Build Number' -split '\.' | Select-Object -First 1
+                            #$serverVersion = [int]$sqlVersionMajor  # Convert to integer for comparison
 
                             # Extract number of processors
                             $totalProcessors = [int]$result.'Total Visible Processors'
@@ -868,36 +868,46 @@ try {
                             # Check if TempDB data files count is a multiple of 4
                             $tempDBMultipleOf4 = ($totalTempDBDataFiles % 4 -eq 0)
 
-                            # Determine recommended TempDB file count based on processors
-							if ($totalProcessors -gt 8) {
-								$recommendedTempDBFiles = 4  # TempDB files should be between 4 and 8 if processors > 8
-							} elseif ($totalProcessors -eq 8) {
-								$recommendedTempDBFiles = 4  # TempDB files should be between 2 and 8 if processors == 8
-							} elseif ($totalProcessors -eq 4) {
-								$recommendedTempDBFiles = 2  # TempDB files should be between 2 and 4 if processors == 4
-							}
-
-                            # Adjust recommendation for SQL Server 2022+
-                            if ($serverVersion -ge 16 -and $totalTempDBDataFiles -eq 1) {
-                                $recommendedTempDBFiles = 1  # SQL Server 2022+ allows just 1 file
+                            # Determine recommended TempDB file count range based on processors
+                            if ($totalProcessors -gt 8) {
+                                $recommendedTempDBFilesMin = 4
+                                $recommendedTempDBFilesMax = 8
+                            } elseif ($totalProcessors -eq 8) {
+                                $recommendedTempDBFilesMin = 4
+                                $recommendedTempDBFilesMax = 8
+                            } elseif ($totalProcessors -eq 4) {
+                                $recommendedTempDBFilesMin = 2
+                                $recommendedTempDBFilesMax = 4
+                            } else {
+                                $recommendedTempDBFilesMin = 1
+                                $recommendedTempDBFilesMax = 1
                             }
 
-                            # Check compliance
-                            $compliant = $tempDBMultipleOf4 -and ($totalTempDBDataFiles -ge $recommendedTempDBFiles) -and $allFilesSameSize
+                            # Evaluate TempDB status
+                            $tempDBStatus = "OK"
 
-                            # Set TempDB status
-                            $tempDBStatusMessage = if ($compliant) { "OK" } else { "REVIEW" }
+                            # SQL Server 2022+ (version 16+) special case: 1 file is acceptable, even if below min
+                            $singleFileOkay = ($majorVersion -ge 16 -and $totalTempDBDataFiles -eq 1)
 
-                            # If only one TempDB data file exists, there's nothing to compare
+                            if (
+                                (-not $singleFileOkay -and (
+                                    $totalTempDBDataFiles -lt $recommendedTempDBFilesMin -or
+                                    $totalTempDBDataFiles -gt $recommendedTempDBFilesMax
+                                )) -or
+                                -not $allFilesSameSize -or
+                                (-not $tempDBMultipleOf4 -and $totalTempDBDataFiles -gt 1)
+                            ) {
+                                $tempDBStatus = "REVIEW"
+                            }
+
+                            # Determine uniform size description
                             if ($totalTempDBDataFiles -eq 1) {
                                 $tempDBUniformSize = "Nothing to compare because TempDB has only one data file"
                             } 
-                            # If multiple files exist, check for uniformity
                             elseif (-not $allFilesSameSize) {
                                 $tempDBFileDetails = $tempDBDataFiles | ForEach-Object { "$($_.FileName): $($_.SizeMB) MB" }
                                 $tempDBUniformSize = $tempDBFileDetails -join ", "
                             } 
-                            # If all files have the same size
                             else {
                                 $tempDBUniformSize = "All data files have the same size"
                             }
@@ -926,7 +936,7 @@ try {
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Recommended Max Server Memory (MB)" -Value $recommendedMaxMemory
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Current Max Dop" -Value $currentMaxDop
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Recommended Max Dop" -Value $recommendedMaxDop
-                            $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Status" -Value $tempDBStatusMessage
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Status" -Value $tempDBStatus
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Count" -Value $totalTempDBDataFiles
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Size" -Value $tempDBUniformSize
 
