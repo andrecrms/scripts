@@ -19,7 +19,7 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 11. TempDB Files checks:
     * Autogrow is the same for all data files? If no, status column will be marked as REVIEW.
     * Size is the same for all data files? If no, status column will be marked as REVIEW.
-    * Number of files until SQL Server 2019: if 4 processors, TempDB should have at least 2 files. If 8 processors, TempDB should have  at least 4 files. If more than 8 processors, TempDB should have at least 8 files but no more than that. If one of the rules does not fit these definitions, the status column will be marked as REVIEW.
+    * Number of files until SQL Server 2019: if 4 processors, TempDB should have at least 2 files. If 8 processors, TempDB should have  at least 4 files. If 8 processors or more, TempDB should have at least 4 files but no more than 8. If one of the rules does not fit these definitions, the status column will be marked as REVIEW.
     * Number of files in case of SQL Server 2022 or higher: in case of 1 file, column will be marked as OK.
 12. Trace Flags, check will vary according to SQL version
     * For SQL Server 2012 and 2014, if trace flags 1118 and 4199 are off, status column will be marked as REVIEW.
