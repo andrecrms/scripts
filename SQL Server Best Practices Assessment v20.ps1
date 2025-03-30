@@ -649,12 +649,12 @@ try {
 
                             # Trace Flag logic
                             $traceFlagsByVersion = @{
-                                '11' = @(4199, 1118)    # SQL Server 2012
-                                '12' = @(4199, 1118)    # SQL Server 2014
-                                '13' = @(4199, 7745)    # SQL Server 2016
-                                '14' = @(4199, 7745, 12310)  # SQL Server 2017
-                                '15' = @(4199, 7745, 12310)  # SQL Server 2019
-                                '16' = @(4199, 7745, 12656, 12618)  # SQL Server 2022
+                                '11' = @(4199, 1118)                              # SQL Server 2012
+                                '12' = @(4199, 1118)                              # SQL Server 2014
+                                '13' = @(4199, 7745)                              # SQL Server 2016
+                                '14' = @(4199, 7745, 12310)                       # SQL Server 2017
+                                '15' = @(4199, 7745, 12310)                       # SQL Server 2019
+                                '16' = @(4199, 7745, 12656, 12618)                # SQL Server 2022 and above
                             }
 
                             # Extract the major version number from the SQL version string
@@ -672,8 +672,11 @@ try {
 
                             # Determine the required trace flags for the current SQL version
                             $traceFlagList = $null
+                            $majorVersionInt = [int]$majorVersion
 
-                            if ($traceFlagsByVersion.ContainsKey($majorVersion)) {
+                            if ($majorVersionInt -ge 16) {
+                                $traceFlagList = $traceFlagsByVersion['16']  # Use version 16 flags for 16 and above
+                            } elseif ($traceFlagsByVersion.ContainsKey($majorVersion)) {
                                 $traceFlagList = $traceFlagsByVersion[$majorVersion]
                             } else {
                                 #Write-Host "No trace flags are defined for version $majorVersion" -ForegroundColor Red
@@ -704,6 +707,7 @@ try {
                             } else {
                                 "No trace flags enabled"
                             }
+
 
                             # Calculate recommended max memory (75% of total server memory)
                             $recommendedMaxMemory = [math]::Round($result.'Total Server Memory (MB)' * 0.75, 0)
