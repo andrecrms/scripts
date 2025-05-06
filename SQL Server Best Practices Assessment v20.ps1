@@ -755,6 +755,16 @@ try {
                             }
 
                             # Compatibility Level logic (filter out native compatibility level)
+                            $nativeCompatibilityLevel = switch ($majorVersion) {
+                                '11' { 110 }  # SQL Server 2012
+                                '12' { 120 }  # SQL Server 2014
+                                '13' { 130 }  # SQL Server 2016
+                                '14' { 140 }  # SQL Server 2017
+                                '15' { 150 }  # SQL Server 2019
+                                '16' { 160 }  # SQL Server 2022
+                                '17' { 170 }  # SQL Server 2025
+                                default { 0 } # Unknown version
+                            }
                             $compatibilityLevels = $compatResult | Where-Object { 
                                 $_.'Compatibility Level' -ne $nativeCompatibilityLevel
                             }
