@@ -2,7 +2,7 @@
 
 Hello! I will use this repo to insert some SQL and Powershell scripts. 
 
-**05/06/2025:**
+**07/15/2025:**
 
 The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v20.ps1** (https://github.com/andrecrms/scripts/blob/PowerShell-Scripts/SQL%20Server%20Best%20Practices%20Assessment%20v20.ps1). It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
@@ -16,12 +16,14 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 8. Backup log execution in the last 7 days.
 9. CheckDB execution in the last 7 days.
 10. Databases Compatibility Level. (Status column will be marked as REVIEW for any database not configured with the native compatibility level).
-11. TempDB Files checks:
+11. Query Store checks, the script will list all databases with Query Store enabled/disabled, the configured capture mode also will be listed, when Query Store is disabled for any user db or model, status column will be marked as REVIEW.
+12. Accelerated Database Recovery check, the script will list all databases with ADR enabled/disabled, when ADR is disabled for any user db, status column will be marked as REVIEW. 
+13. TempDB Files checks:
     * Autogrow is the same for all data files? If no, status column will be marked as REVIEW.
     * Size is the same for all data files? If no, status column will be marked as REVIEW.
     * Number of files until SQL Server 2019: if 4 processors, TempDB should have at least 2 files. If 8 processors, TempDB should have  at least 4 files. If 8 processors or more, TempDB should have at least 4 files but no more than 8. If one of the rules does not fit these definitions, the status column will be marked as REVIEW.
     * Number of files in case of SQL Server 2022 or higher: in case of 1 file, column will be marked as OK.
-12. Trace Flags, check will vary according to SQL version
+14. Trace Flags, check will vary according to SQL version
     * For SQL Server 2012 and 2014, if trace flags 1118 and 4199 are off, status column will be marked as REVIEW.
     * For SQL Server 2016, if trace flags 4199 and 7745 are off, status column will be marked as REVIEW.
     * For SQL Server 2017 and 2019, if 4199, 7745, 12310 are off, status column will be marked as REVIEW.
