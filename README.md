@@ -31,3 +31,13 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
     * If none trace flags are enabled or if any from the list above are missing according with SQL Server version, status column also will be marked as REVIEW.
 
 **Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
+
+**Troubleshooting**
+
+In case of errors to connect/run script remotelly (access denied and others), here are some commands that you can try to use to make it work (credits to Ahmad Hassan from Microsoft Egypt):
+
+PS C:\Windows\system32> Enable-PSRemoting -Force
+PS C:\Windows\system32> Enable-PSRemoting -SkipNetworkProfileCheck -Force
+PS C:\Windows\system32> Set-NetFirewallRule -Name 'WINRM-HTTP-In-TCP' -RemoteAddress Any
+PS C:\temp> Set-ExecutionPolicy Unrestricted
+PS C:\temp> reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f_
