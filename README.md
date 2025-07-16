@@ -34,7 +34,7 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 
 **Troubleshooting**
 
-In case of errors to connect/run script remotelly (access denied and others), here are some commands that you can try to use to make it work (credits to Ahmad Hassan from Microsoft Egypt):
+In case of errors to connect/run script remotelly (access denied and others), here are some commands that you can try to use to make it work (credits to Ahmad Hassan from Microsoft - Egypt):
 
 PS C:\Windows\system32> Enable-PSRemoting -Force<br>
 PS C:\Windows\system32> Enable-PSRemoting -SkipNetworkProfileCheck -Force<br>
