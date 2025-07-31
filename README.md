@@ -2,7 +2,7 @@
 
 Hello! I will use this repo to insert some SQL and Powershell scripts. 
 
-**07/15/2025:**
+**07/30/2025:**
 
 The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v21.ps1** (https://github.com/andrecrms/scripts/blob/PowerShell-Scripts/SQL%20Server%20Best%20Practices%20Assessment%20v21.ps1). It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
