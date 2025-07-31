@@ -18,7 +18,7 @@ Write-Host @"
 # A log of the execution will also be generated in the same directory as the csv file mentioned above.
 # Tested on: SQL Server 2014 to 2022.
 #
-# Author: Andre Cesar Rodrigues 
+# Author: Andre Cesar Rodrigues
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
@@ -26,7 +26,7 @@ Write-Host @"
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
-DISCLAIMER: This script should be tested in an appropriate environment before running in production. Additionally, properly validate your results as each environment may 
+DISCLAIMER: This script should be tested in an appropriate environment before running in production. Additionally, properly validate your results as each environment may
 have its own characteristics. This script will not change nothing in the environment, it will just run some SQL Queries to collect all necessary information.
 "@ -ForegroundColor Red
 
@@ -93,7 +93,7 @@ foreach ($entry in $serverEntries) {
 
             Try {
                 Import-Module sqlps -DisableNameChecking -ErrorAction SilentlyContinue
-    
+
                 # Get SQL Server instance names
                 Try {
                     $instanceNames = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server' -ErrorAction Stop).InstalledInstances
@@ -107,7 +107,7 @@ foreach ($entry in $serverEntries) {
 
 # Main config query
 $mainQuery = @"
-SELECT 
+SELECT
     SERVERPROPERTY('ServerName') AS [Server Name],
     SERVERPROPERTY('ProductVersion') AS [SQL Build Number],
     SERVERPROPERTY('Edition') AS [SQL Edition],
@@ -129,7 +129,7 @@ WHERE name IN (
 
 # Compatibility level query
 $compatQuery = @"
-SELECT 
+SELECT
     d.name AS [Database Name],
     d.compatibility_level AS [Compatibility Level],
     d.is_auto_update_stats_on AS [Auto Update Stats],
@@ -142,12 +142,12 @@ WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('master', 'tempdb', 'model', 'm
 
 # AutoGrow query
 $autoGrowQuery = @"
-SELECT 
+SELECT
     mf.name AS [File Name],
     mf.physical_name AS [Physical Name],
     mf.size * 8 / 1024 AS [Size (MB)],
     mf.growth * 8 / 1024 AS [AutoGrow Increment (MB)],
-    CASE 
+    CASE
         WHEN mf.growth = 0 THEN 'No AutoGrow'
         WHEN mf.is_percent_growth = 1 THEN 'Percentage-based growth'
         WHEN mf.is_percent_growth = 0 THEN 'Size-based growth'
@@ -214,7 +214,7 @@ BEGIN
 
     -- Extract the Last Known Good DBCC CHECKDB execution date
     INSERT INTO #CheckDBInfo (DatabaseName, LastCheckDB)
-    SELECT @dbname, 
+    SELECT @dbname,
            MAX(CASE WHEN Field = 'dbi_dbccLastKnownGood' THEN TRY_CAST(Value AS DATETIME) END)
     FROM #DBInfo;
 
@@ -247,9 +247,9 @@ CREATE TABLE #VLFInfo (
 
 DECLARE @dbName SYSNAME, @sql NVARCHAR(MAX);
 
-DECLARE db_cursor CURSOR FOR 
-SELECT name 
-FROM sys.databases 
+DECLARE db_cursor CURSOR FOR
+SELECT name
+FROM sys.databases
 WHERE state_desc = 'ONLINE' AND name not in ('master','model','msdb','tempdb');
 
 OPEN db_cursor;
@@ -261,7 +261,7 @@ BEGIN
     SET @sql = N'
         USE ' + QUOTENAME(@dbName) + N';
         INSERT INTO #VLFInfo (DatabaseName, VLFCount)
-        SELECT ''' + @dbName + N''', COUNT(*) 
+        SELECT ''' + @dbName + N''', COUNT(*)
         FROM sys.dm_db_log_info(DB_ID());';
 
     EXEC sp_executesql @sql;
@@ -286,14 +286,14 @@ DROP TABLE #VLFInfo;
 $BkpQuery = @"
 WITH BackupData AS (
     -- Get latest full backup and log backup for each database
-    SELECT 
+    SELECT
         database_name,
         MAX(CASE WHEN type = 'D' THEN backup_finish_date ELSE NULL END) AS LastFullBackup,
         MAX(CASE WHEN type = 'L' THEN backup_finish_date ELSE NULL END) AS LastLogBackup
     FROM msdb.dbo.backupset
     GROUP BY database_name
 )
-SELECT 
+SELECT
     d.name AS DatabaseName,
     d.recovery_model_desc AS RecoveryModel,
     ISNULL(bd.LastFullBackup, '1900-01-01 00:00:00.000') AS LastFullBackup,
@@ -331,23 +331,23 @@ SELECT @cpuaffin = CASE WHEN @cpucount > 32 THEN @affinity64mask ELSE @affinitym
 SET @cpuaffin_fixed = @cpuaffin;
 
 -- Fetch the number of CPUs available for SQL (online schedulers)
-SELECT @affined_cpus = COUNT(cpu_id) 
-FROM sys.dm_os_schedulers 
+SELECT @affined_cpus = COUNT(cpu_id)
+FROM sys.dm_os_schedulers
 WHERE is_online = 1 AND scheduler_id < 255 AND parent_node_id < 64;
 
 -- Select Recommended MaxDOP based on conditions
-SELECT @recommended_maxdop = 
-    CASE 
+SELECT @recommended_maxdop =
+    CASE
         -- If not NUMA, and up to 8 @affined_cpus then MaxDOP up to 8
         WHEN @numa = 1 AND @affined_cpus <= 8 THEN @affined_cpus
-        -- If not NUMA, and more than 8 @affined_cpus then MaxDOP 8 
+        -- If not NUMA, and more than 8 @affined_cpus then MaxDOP 8
         WHEN @numa = 1 AND @affined_cpus > 8 THEN 8
-        -- If SQL 2016 or higher and has NUMA and # logical CPUs per NUMA up to 15, then MaxDOP is set as # logical CPUs per NUMA, up to 15 
+        -- If SQL 2016 or higher and has NUMA and # logical CPUs per NUMA up to 15, then MaxDOP is set as # logical CPUs per NUMA, up to 15
         WHEN @sqlmajorver >= 13 AND @numa > 1 AND CEILING(@cpucount*1.00/@numa) <= 15 THEN CEILING((@cpucount*1.00)/@numa)
         -- If SQL 2016 or higher and has NUMA and # logical CPUs per NUMA > 15, then MaxDOP is set as 1/2 of # logical CPUs per NUMA
-        WHEN @sqlmajorver >= 13 AND @numa > 1 AND CEILING(@cpucount*1.00/@numa) > 15 THEN 
+        WHEN @sqlmajorver >= 13 AND @numa > 1 AND CEILING(@cpucount*1.00/@numa) > 15 THEN
             CASE WHEN CEILING(@cpucount*1.00/@numa/2) > 16 THEN 16 ELSE CEILING(@cpucount*1.00/@numa/2) END
-        -- If up to SQL 2016 and has NUMA and # logical CPUs per NUMA up to 8, then MaxDOP is set as # logical CPUs per NUMA 
+        -- If up to SQL 2016 and has NUMA and # logical CPUs per NUMA up to 8, then MaxDOP is set as # logical CPUs per NUMA
         WHEN @sqlmajorver < 13 AND @numa > 1 AND CEILING(@cpucount*1.00/@numa) < 8 THEN CEILING(@cpucount*1.00/@numa)
         -- If up to SQL 2016 and has NUMA and # logical CPUs per NUMA > 8, then MaxDOP 8
         WHEN @sqlmajorver < 13 AND @numa > 1 AND CEILING(@cpucount*1.00/@numa) >= 8 THEN 8
@@ -360,14 +360,14 @@ FROM sys.configurations
 WHERE name = 'max degree of parallelism';
 
 -- Display the Recommended MaxDOP and Current MaxDOP
-SELECT 
-    @recommended_maxdop AS [Recommended_MaxDOP], 
+SELECT
+    @recommended_maxdop AS [Recommended_MaxDOP],
     @current_maxdop AS [Current_MaxDOP]
 "@
 
 # TempDB Query
 $tempDBFileSizeQuery = @"
-SELECT 
+SELECT
     name AS FileName,
     type_desc AS FileType,
     size * 8 / 1024 AS SizeMB,
@@ -378,7 +378,7 @@ WHERE database_id = DB_ID('tempdb');
 
 # Query Store Query
 $QueryStoreQuery = @"
-DECLARE @major_version INT = CAST(LEFT(CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)), 
+DECLARE @major_version INT = CAST(LEFT(CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
                                CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1) AS INT);
 
 IF @major_version >= 13
@@ -436,7 +436,7 @@ DECLARE @major_version INT = CAST(LEFT(CAST(SERVERPROPERTY('ProductVersion') AS 
 IF @major_version >= 15
 BEGIN
     DECLARE @sql NVARCHAR(MAX) = N'
-    SELECT 
+    SELECT
         name AS database_name,
         is_accelerated_database_recovery_on,
         CASE is_accelerated_database_recovery_on
@@ -458,12 +458,12 @@ END
 
 # Loop through each instance and execute the queries
 foreach ($instanceName in $instanceNames) {
-                    
+
 # Inline logic to retrieve SQL Server port from registry (no function)
 try {
     # Define the registry base path for SQL Server
     $basePath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server"
-    
+
     # Initialize the port variable
     $port = "1433" # Default port
 
@@ -520,7 +520,7 @@ try {
                         # Execute Trace Flag query
                         $currentQuery = "Trace Flag Query"
                         $enabledFlags = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $traceflagquery -QueryTimeout 65535 -ErrorAction Stop
-                    
+
                         # Execute CheckDB query
                         $currentQuery = "CheckDB Query"
                         $checkDBResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $checkDBQuery -QueryTimeout 65535 -ErrorAction Stop
@@ -532,7 +532,7 @@ try {
                         # Execute Backup query
                         $currentQuery = "Backup Query"
                         $backupResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $BkpQuery -QueryTimeout 65535 -ErrorAction Stop
- 
+
                         # Execute MaxDop Query
                         $currentQuery = "MaxDop Query"
                         $maxdopresult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $maxdopquery -QueryTimeout 65535 -ErrorAction Stop
@@ -550,7 +550,7 @@ try {
                         $ADRQueryResults = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $ADRQuery -QueryTimeout 65535 -ErrorAction Stop
 
                     }
-                    Catch 
+                    Catch
                     {
                         Write-Host "Error executing '$currentQuery' on SQL instance '$sqlInstance'. Error: $_"
 
@@ -587,9 +587,9 @@ try {
                         else {
                             # If no MaxDop values are present, mark as REVIEW
                             $maxDopStatus = 'REVIEW'
-                        }        
-                    }         
-            
+                        }
+                    }
+
                     # Process Backups Logic
                     $databasesWithoutFullBackup = @()
                     $databasesWithoutLogBackup = @()
@@ -597,7 +597,7 @@ try {
                     # Loop through each result from the SQL query
                     foreach ($database in $backupResult) {
                         # Check if LastFullBackup is valid and convert to DateTime
-                        $lastFullBackup = if ($database.LastFullBackup) { 
+                        $lastFullBackup = if ($database.LastFullBackup) {
                             try {
                                 [datetime]$database.LastFullBackup
                             }
@@ -605,12 +605,12 @@ try {
                                 $null
                             }
                         }
-                        else { 
-                            $null 
+                        else {
+                            $null
                         }
 
                         # Check if LastLogBackup is valid and convert to DateTime
-                        $lastLogBackup = if ($database.LastLogBackup) { 
+                        $lastLogBackup = if ($database.LastLogBackup) {
                             try {
                                 [datetime]$database.LastLogBackup
                             }
@@ -618,8 +618,8 @@ try {
                                 $null
                             }
                         }
-                        else { 
-                            $null 
+                        else {
+                            $null
                         }
 
                         # Full Backup Status logic: If LastFullBackup is older than 7 days or NULL
@@ -631,7 +631,7 @@ try {
                         }
 
                         # Log Backup Status logic: For FULL recovery model, if LastLogBackup is NULL or older than 24 hours
-                        $logBackupStatus = if (($database.RecoveryModel -eq 'FULL' -or $database.RecoveryModel -eq 'BULK_LOGGED') -and 
+                        $logBackupStatus = if (($database.RecoveryModel -eq 'FULL' -or $database.RecoveryModel -eq 'BULK_LOGGED') -and
                         ($lastLogBackup -eq $null -or $lastLogBackup -lt (Get-Date).AddHours(-24))) {
                             'REVIEW'
                         }
@@ -655,10 +655,10 @@ try {
                     }
 
                     # Determine overall status for reporting
-                    $fullBackupStatusMessage = if ($databasesWithoutFullBackup.Count -gt 0) { 
-                        "DBs: " + ($databasesWithoutFullBackup -join ', ') 
+                    $fullBackupStatusMessage = if ($databasesWithoutFullBackup.Count -gt 0) {
+                        "DBs: " + ($databasesWithoutFullBackup -join ', ')
                     }
-                    else { 
+                    else {
                         "All databases have recent full backups."
                     }
 
@@ -700,7 +700,7 @@ try {
                             $serverNameWithInstance = $result.'Server Name'  # Example: ServerName\INSTANCE_NAME
                             $serverName = $serverNameWithInstance -replace '\\.*$', ''  # Keep only the server name part
                             $instanceNameOnly = $serverNameWithInstance -replace '^[^\\]*\\', ''  # Extract instance name
-                            
+
                             # If the instance name is the same as the server name, set it to "DEFAULT"
                             if ($instanceNameOnly -eq $serverName) {
                                 $instanceNameOnly = 'DEFAULT'
@@ -856,16 +856,16 @@ try {
                                 '17' { 170 }  # SQL Server 2025
                                 default { 0 } # Unknown version
                             }
-                            $compatibilityLevels = $compatResult | Where-Object { 
+                            $compatibilityLevels = $compatResult | Where-Object {
                                 $_.'Compatibility Level' -ne $nativeCompatibilityLevel
                             }
-                            $compatLevels = $compatibilityLevels | ForEach-Object { 
+                            $compatLevels = $compatibilityLevels | ForEach-Object {
                                 "$($_.'Database Name') (Level $($_.'Compatibility Level'))"
                             }
 
                             # Set message for databases out of native compatibility level
-                            $compatLevelsMessage = if ($compatLevels.Count -eq 0) { 
-                                "All databases are in native compatibility level!" 
+                            $compatLevelsMessage = if ($compatLevels.Count -eq 0) {
+                                "All databases are in native compatibility level!"
                             }
                             else {
                                 $compatLevels -join ', '
@@ -890,7 +890,7 @@ try {
                             else {
                                 $divergentDatabases -join ', '
                             }
-                           
+
                             # Database Options Status logic
                             $databaseOptionsStatus = if ($divergentDatabases.Count -gt 0) {
                                 "REVIEW"
@@ -900,11 +900,11 @@ try {
                             }
 
                             # Compatibility Level Status logic
-                            $compatibilityLevelStatus = if ($compatLevels.Count -gt 0) { 
-                                "REVIEW" 
+                            $compatibilityLevelStatus = if ($compatLevels.Count -gt 0) {
+                                "REVIEW"
                             }
-                            else { 
-                                "OK" 
+                            else {
+                                "OK"
                             }
 
                             # Process the result
@@ -1026,7 +1026,7 @@ try {
                             $totalProcessors = [int]$result.'Total Visible Processors'
 
                             # Extract TempDB data file count
-                            $tempDBDataFiles = @($tempDBFileSizeResult | Where-Object { $_.FileType -eq "ROWS" })  
+                            $tempDBDataFiles = @($tempDBFileSizeResult | Where-Object { $_.FileType -eq "ROWS" })
                             $totalTempDBDataFiles = $tempDBDataFiles.Count
 
                             # Extract TempDB file sizes and check for uniformity
@@ -1071,11 +1071,11 @@ try {
                             # Determine uniform size description
                             if ($totalTempDBDataFiles -eq 1) {
                                 $tempDBUniformSize = "Nothing to compare because TempDB has only one data file"
-                            } 
+                            }
                             elseif (-not $allFilesSameSize) {
                                 $tempDBFileDetails = $tempDBDataFiles | ForEach-Object { "$($_.FileName): $($_.SizeMB) MB" }
                                 $tempDBUniformSize = $tempDBFileDetails -join ", "
-                            } 
+                            }
                             else {
                                 $tempDBUniformSize = "All data files have the same size"
                             }
@@ -1173,15 +1173,15 @@ $columnOrder = @(
     "SQL Server Version",
     "SQL Build Number",
     "SQL Edition",
-    "Memory Status",      
+    "Memory Status",
     "Config Status",
     "MaxDop Status",
     "Query Store Status",
     "ADR Status",
-    "TempDB Status",      
+    "TempDB Status",
     "Auto Growth Status",
     "Database Options Status",
-    "Compatibility Level Status", 
+    "Compatibility Level Status",
     "Trace Flag Status",
     "CHECKDB Status",
     "VLF Status",
@@ -1235,15 +1235,15 @@ $columnOrder = @(
     "SQL Server Version",
     "SQL Build Number",
     "SQL Edition",
-    "Memory Status",      
+    "Memory Status",
     "Config Status",
     "MaxDop Status",
     "Query Store Status",
     "ADR Status",
-    "TempDB Status",      
+    "TempDB Status",
     "Auto Growth Status",
     "Database Options Status",
-    "Compatibility Level Status", 
+    "Compatibility Level Status",
     "Trace Flag Status",
     "CHECKDB Status",
     "VLF Status",
@@ -1289,8 +1289,8 @@ $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 Write-Host "Generating Summary of Assessment Results..."
 
 # Define columns that contain status checks
-$statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "ADR Status", "TempDB Status", "Auto Growth Status", 
-    "Database Options Status", "Compatibility Level Status", "Trace Flag Status", "CHECKDB Status", 
+$statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "ADR Status", "TempDB Status", "Auto Growth Status",
+    "Database Options Status", "Compatibility Level Status", "Trace Flag Status", "CHECKDB Status",
     "VLF Status", "Full Backup Status", "Log Backup Status")
 
 # Initialize counters per column
