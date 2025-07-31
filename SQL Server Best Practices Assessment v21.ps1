@@ -134,6 +134,7 @@ SELECT
     d.compatibility_level AS [Compatibility Level],
     d.is_auto_update_stats_on AS [Auto Update Stats],
     d.is_auto_create_stats_on AS [Auto Create Stats],
+    d.is_auto_shrink_on AS [Auto Shrink],
     d.page_verify_option_desc AS [Page Verify]
 FROM sys.databases d
 WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('master', 'tempdb', 'model', 'msdb')
@@ -873,12 +874,14 @@ try {
                             # Checks for Auto Create Stats, Auto Update Stats, and Page Verify
                             $autoUpdateStatsDatabases = $compatResult | Where-Object { $_.'Auto Update Stats' -eq 0 }
                             $autoCreateStatsDatabases = $compatResult | Where-Object { $_.'Auto Create Stats' -eq 0 }
+			    $autoShrink = $compatResult | Where-Object { $_.'Auto Shrink' -eq 1 }
                             $pageVerifyDatabases = $compatResult | Where-Object { $_.'Page Verify' -ne "CHECKSUM" }
 
                             # List databases without proper settings
                             $divergentDatabases = @()
                             $divergentDatabases += $autoUpdateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Update Stats OFF)" }
                             $divergentDatabases += $autoCreateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Create Stats OFF)" }
+			    $divergentDatabases += $autoShrink | ForEach-Object { "$($_.'Database Name') (Auto Shrink ON)" }
                             $divergentDatabases += $pageVerifyDatabases | ForEach-Object { "$($_.'Database Name') (Page Verify NOT CHECKSUM)" }
 
                             $divergentDatabasesMessage = if ($divergentDatabases.Count -eq 0) {
