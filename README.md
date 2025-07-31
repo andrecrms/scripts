@@ -9,7 +9,7 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 1. Instance configs (Optimize For Ad Hoc workloads, Remote Dedicated Admin Connections and Backup Compression, for this last one, in case of SQL EXPRESS EDITION, it will be disregarded).
 2. Min and Max Server Memory. (Status will be marked as REVIEW in case Min server memory is <> 1024 MB and if Max Server Memory is not at least 75% of the total server memory or not configured).
 3. Max Degree of Parallelism. (BPCheck script logic, status will be marked as REVIEW if maxdop number is not the recommended one considering NUMA, affinity and visible processors for SQL Server)
-4. Database Options (Auto Create/Auto Update/PAGE VERIFY, if one of the first two or both are turned off status column will be marked as REVIEW, if PAGE VERIFY is not CHECKSUM, column also will be marked as REVIEW)
+4. Database Options (Auto Create/Auto Update/Auto Shrink/PAGE VERIFY, if one of the first two or both are turned off status column will be marked as REVIEW, if Auto Shrink is ON or PAGE VERIFY is not CHECKSUM, column also will be marked as REVIEW)
 5. VLFs checks. (Any t-log file with more than 1000 VLFs, status will be marked as REVIEW)
 6. Autogrow settings (For large Autogrows, unlimited Autogrow or Percent Autogrows, status will be marked as REVIEW)
 7. Backup full execution in the last 7 days.
