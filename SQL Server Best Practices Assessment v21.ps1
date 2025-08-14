@@ -22,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 07/30/2025.
+# Last modified: 08/14/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -137,7 +137,7 @@ SELECT
     d.is_auto_shrink_on AS [Auto Shrink],
     d.page_verify_option_desc AS [Page Verify]
 FROM sys.databases d
-WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('master', 'tempdb', 'model', 'msdb')
+WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('tempdb', 'model', 'msdb')
 "@
 
 # AutoGrow query
