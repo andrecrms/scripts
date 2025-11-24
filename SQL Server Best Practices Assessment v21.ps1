@@ -529,7 +529,6 @@ FROM #TestPrincipals;
 DROP TABLE #TestPrincipals;
 "@
 
-
 # Loop through each instance and execute the queries
 foreach ($instanceName in $instanceNames) {
 
