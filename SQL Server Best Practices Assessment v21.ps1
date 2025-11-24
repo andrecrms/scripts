@@ -22,15 +22,13 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 08/14/2025.
+# Last modified: 11/24/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
 DISCLAIMER: This script should be tested in an appropriate environment before running in production. Additionally, properly validate your results as each environment may
 have its own characteristics. This script will not change nothing in the environment, it will just run some SQL Queries to collect all necessary information.
 "@ -ForegroundColor Red
-
-
 
 # Prompt user for server input
 $ServerName = Read-Host "Enter the server name (or press Enter to use the list from C:\temp\serverlist.txt)" # make sure to have just one server per row inside this file!
@@ -60,9 +58,20 @@ else {
     }
 }
 
-# Ask for FQDN usage
-$UseFQDN = Read-Host "Do you want to use the full domain name (yes/no)?"
+
+# Ask for FQDN usage with validation loop
+while ($true) {
+    $UseFQDN = (Read-Host "Do you want to use the full domain name (yes/no)?").ToLower()
+
+    if ($UseFQDN -in @("yes", "no")) {
+        break
+    }
+
+    Write-Host "Invalid input. Please type 'yes' or 'no'." -ForegroundColor Red
+}
+
 $DomainName = ""
+
 if ($UseFQDN -eq "yes") {
     $DomainName = Read-Host "Enter the domain name (e.g., contoso.com)"
 }
@@ -453,6 +462,70 @@ ELSE
 BEGIN
     SELECT 'This SQL version does not have Accelerated Database Recovery feature available' AS message;
 END
+
+# Login/User Test query
+$loginUserTestQuery = @"
+DECLARE @dbname sysname;
+
+CREATE TABLE #TestPrincipals
+(
+    PrincipalType NVARCHAR(10),
+    PrincipalName sysname,
+    DatabaseName  sysname NULL
+);
+
+-- 1. Logins with 'test' in the name
+INSERT INTO #TestPrincipals (PrincipalType, PrincipalName, DatabaseName)
+SELECT
+    'Login' AS PrincipalType,
+    sp.name AS PrincipalName,
+    NULL    AS DatabaseName
+FROM sys.server_principals AS sp
+WHERE sp.name LIKE '%test%'
+  AND sp.type IN ('S','U','G')       -- SQL login, Windows login, Windows group
+  AND sp.name NOT LIKE '##%';        -- skip system auto-created logins
+
+-- 2. Users with 'test' in the name across databases
+DECLARE db_cursor CURSOR FAST_FORWARD FOR
+    SELECT name
+    FROM sys.databases
+    WHERE state_desc = 'ONLINE'
+      AND database_id > 4;           -- exclude system dbs; adjust if you want master/msdb etc.
+
+OPEN db_cursor;
+FETCH NEXT FROM db_cursor INTO @dbname;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    DECLARE @sql NVARCHAR(MAX);
+
+    SET @sql = N'
+        INSERT INTO #TestPrincipals (PrincipalType, PrincipalName, DatabaseName)
+        SELECT
+            ''User'' AS PrincipalType,
+            dp.name  AS PrincipalName,
+            N''' + @dbname + N''' AS DatabaseName
+        FROM ' + QUOTENAME(@dbname) + N'.sys.database_principals AS dp
+        WHERE dp.name LIKE ''%test%''
+          AND dp.type IN (''S'',''U'',''G'')
+          AND dp.principal_id > 4;   -- skip dbo, guest, sys users
+    ';
+
+    EXEC (@sql);
+
+    FETCH NEXT FROM db_cursor INTO @dbname;
+END
+
+CLOSE db_cursor;
+DEALLOCATE db_cursor;
+
+SELECT
+    PrincipalType,
+    PrincipalName,
+    DatabaseName
+FROM #TestPrincipals;
+
+DROP TABLE #TestPrincipals;
 "@
 
 
@@ -548,6 +621,10 @@ try {
                         # Execute ADR Query
                         $currentQuery = "ADR Query"
                         $ADRQueryResults = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $ADRQuery -QueryTimeout 65535 -ErrorAction Stop
+
+						# Execute Login/User Test Query
+						$currentQuery = "Login/User Test Query"
+						$loginUserTestResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $loginUserTestQuery -QueryTimeout 65535 -ErrorAction Stop
 
                     }
                     Catch
@@ -692,6 +769,48 @@ try {
                     $checkDBStatus = if ($missingCheckDB.Count -gt 0) { "REVIEW" } else { "OK" }
                     $missingCheckDBMessage = if ($missingCheckDB.Count -eq 0) { "All databases are OK" } else { $missingCheckDB -join ', ' }
 
+					# ------------------------------------------
+					# Login/User 'test' validation logic
+					# ------------------------------------------
+					$testLogins = @(
+						$loginUserTestResult |
+						Where-Object { $_.PrincipalType -eq 'Login' } |
+						Select-Object -ExpandProperty PrincipalName -ErrorAction SilentlyContinue
+					)
+
+					$testUsersFormatted = @(
+						$loginUserTestResult |
+						Where-Object { $_.PrincipalType -eq 'User' } |
+						ForEach-Object {
+							# Format as dbname_users: username
+							"$($_.DatabaseName)_users: $($_.PrincipalName)"
+						}
+					)
+
+					if ($testLogins.Count -gt 0 -or $testUsersFormatted.Count -gt 0) {
+						$loginUserTestStatus = "REVIEW"
+					} else {
+						$loginUserTestStatus = "OK"
+					}
+
+					# Build the combined descriptive string
+					$loginUserTestValidation = ""
+
+					if ($testLogins.Count -gt 0) {
+						$loginUserTestValidation += "Logins: " + ($testLogins -join ', ')
+					}
+
+					if ($testUsersFormatted.Count -gt 0) {
+						if (-not [string]::IsNullOrEmpty($loginUserTestValidation)) {
+							$loginUserTestValidation += " | "
+						}
+						$loginUserTestValidation += "Users: " + ($testUsersFormatted -join '; ')
+					}
+
+					if ([string]::IsNullOrEmpty($loginUserTestValidation)) {
+						$loginUserTestValidation = "No logins or users with 'test' found"
+					}
+					
                      # Process the main query results
                     if (($mainResult -ne $null -and $mainResult.Count -gt 0) -or
                         ($compatResult -ne $null -and $compatResult.Count -gt 0) -or
@@ -736,6 +855,8 @@ try {
                                 "TempDB Data Files"                           = $result.'TempDB Data Files'
                                 "DBs with missing CHECKDB in the last 7 days" = $missingCheckDBMessage
                                 "CHECKDB Status"                              = $checkDBStatus
+								"Login or User Test Status"                   = $loginUserTestStatus
+								"Login and Users validation"                  = $loginUserTestValidation
                             }
 
                             # Trace Flag logic
@@ -1162,10 +1283,6 @@ $Jobs | ForEach-Object {
 # Remove completed jobs
 $Jobs | Remove-Job
 
-# Prepare CSV Output
-$executionDate = Get-Date -Format "yyyyMMdd_HHmmss"
-$filePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Results_$executionDate.csv"
-
 # Prepare the column order to bring the status columns to the front
 $columnOrder = @(
     "Server Name",
@@ -1187,6 +1304,7 @@ $columnOrder = @(
     "VLF Status",
     "Full Backup Status",
     "Log Backup Status",
+	"Login or User Test Status",  
     "Total Server Memory (MB)",
     "Current Min Server Memory (MB)",
     "Recommended Min Server Memory (MB)",
@@ -1208,6 +1326,7 @@ $columnOrder = @(
     "DBs with too many VLFs",
     "DBs missing Full Backup in the last 7 days",
     "DBs missing Log Backup (With full rec model)",
+	"Login and Users validation",  
     "Query Store Details",
     "ADR Details",
     "TempDB Data Files Count",
@@ -1219,68 +1338,11 @@ $filteredResults = $Results | Select-Object -Property $columnOrder -ExcludePrope
 
 # Remove duplicate rows based on "Server Name" and "SQL Instance Name"
 $uniqueResults = $filteredResults | Group-Object -Property "Server Name", "SQL Instance Name" | ForEach-Object { $_.Group | Select-Object -First 1 }
-
-# Export filtered results to CSV with the dynamic filename
-$uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 
 # Generate Summary of OK and REVIEW Counts by Status Column
 # Prepare CSV Output
 $executionDate = Get-Date -Format "yyyyMMdd_HHmmss"
 $filePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Results_$executionDate.csv"
-
-# Prepare the column order to bring the status columns to the front
-$columnOrder = @(
-    "Server Name",
-    "SQL Instance Name",
-    "SQL Server Version",
-    "SQL Build Number",
-    "SQL Edition",
-    "Memory Status",
-    "Config Status",
-    "MaxDop Status",
-    "Query Store Status",
-    "ADR Status",
-    "TempDB Status",
-    "Auto Growth Status",
-    "Database Options Status",
-    "Compatibility Level Status",
-    "Trace Flag Status",
-    "CHECKDB Status",
-    "VLF Status",
-    "Full Backup Status",
-    "Log Backup Status",
-    "Total Server Memory (MB)",
-    "Current Min Server Memory (MB)",
-    "Recommended Min Server Memory (MB)",
-    "Current Max Server Memory (MB)",
-    "Recommended Max Server Memory (MB)",
-    "Total Visible Processors",
-    "Current Max Dop",
-    "Recommended Max Dop",
-    "Optimize for Ad Hoc Workloads",
-    "Backup Compression Default",
-    "Remote Admin Connections",
-    "Databases out of native compatibility",
-    "Database Options Divergence",
-    "Unlimited AutoGrow",
-    "AutoGrow by Percentage",
-    "Large Increment AutoGrow",
-    "Trace Flag List",
-    "DBs with missing CHECKDB in the last 7 days",
-    "DBs with too many VLFs",
-    "DBs missing Full Backup in the last 7 days",
-    "DBs missing Log Backup (With full rec model)",
-    "Query Store Details",
-    "ADR Details",
-    "TempDB Data Files Count",
-    "TempDB Data Files Size"
-)
-
-# Remove unwanted columns from the results before exporting to CSV
-$filteredResults = $Results | Select-Object -Property $columnOrder -ExcludeProperty PSComputerName, RunspaceId, PSShowComputerName
-
-# Remove duplicate rows based on "Server Name" and "SQL Instance Name"
-$uniqueResults = $filteredResults | Group-Object -Property "Server Name", "SQL Instance Name" | ForEach-Object { $_.Group | Select-Object -First 1 }
 
 # Export filtered results to CSV with the dynamic filename
 $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
@@ -1291,7 +1353,7 @@ Write-Host "Generating Summary of Assessment Results..."
 # Define columns that contain status checks
 $statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "ADR Status", "TempDB Status", "Auto Growth Status",
     "Database Options Status", "Compatibility Level Status", "Trace Flag Status", "CHECKDB Status",
-    "VLF Status", "Full Backup Status", "Log Backup Status")
+    "VLF Status", "Full Backup Status", "Log Backup Status", "Login or User Test Status")
 
 # Initialize counters per column
 $statusSummary = @{}
