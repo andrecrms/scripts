@@ -2,7 +2,7 @@
 
 Hello! I will use this repo to insert some SQL and Powershell scripts. 
 
-**08/14/2025:**
+**11/24/2025:**
 
 The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v21.ps1** (https://github.com/andrecrms/scripts/blob/PowerShell-Scripts/SQL%20Server%20Best%20Practices%20Assessment%20v21.ps1). It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
@@ -29,7 +29,8 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
     * For SQL Server 2017 and 2019, if 4199, 7745, 12310 are off, status column will be marked as REVIEW.
     * For SQL Server 2022, 4199, 7745, 12656 and 12618 are off, status column will be marked as REVIEW.
     * If none trace flags are enabled or if any from the list above are missing according with SQL Server version, status column also will be marked as REVIEW.
-
+15. Logins and Users with word "test" checks, the script will check all logins and users with the word "test", if any exists the status column will be marked as REVIEW and all of them (logins/users) will be listed.
+    
 **Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
 
 **Troubleshooting**
