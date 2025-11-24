@@ -1,4 +1,4 @@
-﻿# Define log file path with timestamp
+# Define log file path with timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logFilePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Execution_Log_$timestamp.txt"
 
@@ -528,6 +528,7 @@ FROM #TestPrincipals;
 
 DROP TABLE #TestPrincipals;
 "@
+
 
 # Loop through each instance and execute the queries
 foreach ($instanceName in $instanceNames) {
