@@ -462,6 +462,7 @@ ELSE
 BEGIN
     SELECT 'This SQL version does not have Accelerated Database Recovery feature available' AS message;
 END
+"@
 
 # Login/User Test query
 $loginUserTestQuery = @"
