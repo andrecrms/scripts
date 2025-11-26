@@ -31,6 +31,8 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
     * If none trace flags are enabled or if any from the list above are missing according with SQL Server version, status column also will be marked as REVIEW.
 15. Logins and Users with word "test" checks, the script will check all logins and users with the word "test", if any exists the status column will be marked as REVIEW and all of them (logins/users) will be listed.
 16. If SQL Server Service account or SQL Agent account are running using Local Service, Local System or NT SERVICE, if yes, then the status column will be marked as REVIEW.
+
+**Tested on: SQL Server 2019 to 2025.**
     
 **Please test it before running it in your production environment and feel free to download and modify this script to suit your needs. If you use it publicly, please give credit to the author =D. Thanks!**
 
