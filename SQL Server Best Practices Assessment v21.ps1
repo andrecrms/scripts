@@ -17,7 +17,7 @@ Write-Host @"
 # A quick summary of the findings will be presented at the end of the script, but all detailed results will be placed in a CSV file.
 # Each status column will be either OK or REVIEW, when marked as REVIEW, navigate to the right of the sheet to understand why it was marked that way.
 # A log of the execution will also be generated in the same directory as the csv file mentioned above.
-# Tested on: SQL Server 2014 to 2022.
+# Tested on: SQL Server 2019 to 2025.
 #
 # Author: Andre Cesar Rodrigues
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
