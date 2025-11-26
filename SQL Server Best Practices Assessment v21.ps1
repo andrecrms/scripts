@@ -22,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 11/24/2025.
+# Last modified: 11/26/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -529,6 +529,16 @@ FROM #TestPrincipals;
 DROP TABLE #TestPrincipals;
 "@
 
+# Query to detect SQL service accounts
+$detectsqlaccounts = @"
+SELECT 
+    servicename,
+    service_account
+FROM sys.dm_server_services
+WHERE 
+servicename like ('SQL Server%') 
+or servicename like ('SQL Server Agent%');
+"@
 
 # Loop through each instance and execute the queries
 foreach ($instanceName in $instanceNames) {
@@ -627,6 +637,10 @@ try {
 						$currentQuery = "Login/User Test Query"
 						$loginUserTestResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $loginUserTestQuery -QueryTimeout 65535 -ErrorAction Stop
 
+						# Execute query to detect SQL service accounts
+                        $currentQuery = "Detect SQL service accounts"
+                        $sqlaccountsresult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $detectsqlaccounts -QueryTimeout 65535 -ErrorAction Stop
+
                     }
                     Catch
                     {
@@ -644,6 +658,7 @@ try {
                         $tempDBFileSizeResult = @()
                         $QueryStoreResults = @()
                         $ADRQueryResults = @()
+						$sqlaccountsresult = @()
                     }
 
                     # Process MaxDOP Logic
@@ -1202,6 +1217,19 @@ try {
                                 $tempDBUniformSize = "All data files have the same size"
                             }
 
+							# SQL service accounts checks
+                            foreach ($row in $sqlaccountsresult) {
+                                $SQLServiceAccountsStatus = 'OK'
+    
+                                # Check account type and assign status accordingly
+                                if ($row.service_account -like 'NT Service*' -or $row.service_account -eq 'LocalSystem' -or $row.service_account -eq 'LocalService') {
+                                    $SQLServiceAccountsStatus = 'REVIEW'
+                                }
+
+                                # Append each service's details (SQL Server or SQL Agent)
+                                $SQLServiceAccountsDetails += "$($row.servicename) Account: $($row.service_account) | "
+                                }
+
                             # Add new properties to result object
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Memory Status" -Value $memoryStatus
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Config Status" -Value $configStatus
@@ -1233,6 +1261,8 @@ try {
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Status" -Value $tempDBStatus
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Count" -Value $totalTempDBDataFiles
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Size" -Value $tempDBUniformSize
+							$resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Status" -Value $SQLServiceAccountsStatus
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Details" -Value $SQLServiceAccountsDetails.TrimEnd(" | ")
 
                             # Add to jobResults
                             $jobResults += $resultObject
@@ -1305,7 +1335,8 @@ $columnOrder = @(
     "VLF Status",
     "Full Backup Status",
     "Log Backup Status",
-	"Login or User Test Status",  
+	"Login or User Test Status",
+    "SQL Service Accounts Status", 
     "Total Server Memory (MB)",
     "Current Min Server Memory (MB)",
     "Recommended Min Server Memory (MB)",
@@ -1352,9 +1383,9 @@ $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 Write-Host "Generating Summary of Assessment Results..."
 
 # Define columns that contain status checks
-$statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "ADR Status", "TempDB Status", "Auto Growth Status",
+$statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "Auto Growth Status",
     "Database Options Status", "Compatibility Level Status", "Trace Flag Status", "CHECKDB Status",
-    "VLF Status", "Full Backup Status", "Log Backup Status", "Login or User Test Status")
+    "VLF Status", "Full Backup Status", "Log Backup Status", "ADR Status", "SQL Service Accounts Status", "Login or User Test Status", "TempDB Status")
 
 # Initialize counters per column
 $statusSummary = @{}
