@@ -1361,6 +1361,7 @@ $columnOrder = @(
 	"Login and Users validation",  
     "Query Store Details",
     "ADR Details",
+	"SQL Service Accounts Details",
     "TempDB Data Files Count",
     "TempDB Data Files Size"
 )
