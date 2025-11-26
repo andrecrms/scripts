@@ -11,7 +11,8 @@ Write-Host @"
 #============================================================================================================================================================================================
 # This script checks some SQL Server best practices, running it and understanding the results is for those who have been working with the product for some time.
 # It can be run locally or remotely against server names inside a serverlist txt file, establishes remote sessions and executes several SQL queries to evaluate the following best practices:
-# Instance settings, checkdb history, backup history, VLFs, autogrowth, trace flags, tempdb file checks, logins and users with word "test", database options and compatibility levels.
+# Instance settings, checkdb history, backup history, VLFs, autogrowth, trace flags, tempdb file checks, logins and users with word "test", check if SQL Service accounts are running with local
+# system, local service or nt service, check database options and check compatibility levels.
 # This script uses some queries from the BPCheck script to evaluate some best practices: https://github.com/microsoft/tigertoolbox/tree/master/BPCheck
 # A quick summary of the findings will be presented at the end of the script, but all detailed results will be placed in a CSV file.
 # Each status column will be either OK or REVIEW, when marked as REVIEW, navigate to the right of the sheet to understand why it was marked that way.
