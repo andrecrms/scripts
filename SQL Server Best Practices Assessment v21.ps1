@@ -1223,7 +1223,7 @@ try {
                                 $SQLServiceAccountsStatus = 'OK'
     
                                 # Check account type and assign status accordingly
-                                if ($row.service_account -like 'NT Service*' -or $row.service_account -eq 'LocalSystem' -or $row.service_account -eq 'LocalService') {
+                                if ($row.service_account -like 'NT Service*' -or $row.service_account -eq 'LocalSystem' -or $row.service_account -eq 'LocalService' -or $row.service_account -eq 'NT AUTHORITY\NETWORK SERVICE') {
                                     $SQLServiceAccountsStatus = 'REVIEW'
                                 }
 
