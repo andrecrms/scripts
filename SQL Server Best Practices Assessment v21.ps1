@@ -1228,7 +1228,7 @@ try {
                                 }
 
                                 # Append each service's details (SQL Server or SQL Agent)
-                                $SQLServiceAccountsDetails += "$($row.servicename) Account: $($row.service_account) | "
+                                $SQLServiceAccountsDetails = "$($row.servicename) Account: $($row.service_account)"
                                 }
 
                             # Add new properties to result object
@@ -1263,7 +1263,7 @@ try {
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Count" -Value $totalTempDBDataFiles
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Size" -Value $tempDBUniformSize
 							$resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Status" -Value $SQLServiceAccountsStatus
-                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Details" -Value $SQLServiceAccountsDetails.TrimEnd(" | ")
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Details" -Value $SQLServiceAccountsDetails
 
                             # Add to jobResults
                             $jobResults += $resultObject
