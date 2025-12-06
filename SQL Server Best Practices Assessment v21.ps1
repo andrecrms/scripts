@@ -1229,7 +1229,7 @@ try {
                                     $SQLServiceAccountsStatus = 'REVIEW'
                                 }
 
-                                $SQLServiceAccountsDetails += "$($row.servicename) Account: $($row.service_account)"
+                                $SQLServiceAccountsDetails += "$($row.servicename) Account: $($row.service_account) | "
                             }
 
                             $SQLServiceAccountsDetailsText = $SQLServiceAccountsDetails -join "`r`n"
