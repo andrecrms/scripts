@@ -1222,14 +1222,17 @@ try {
                             foreach ($row in $sqlaccountsresult) {
                                 $SQLServiceAccountsStatus = 'OK'
     
-                                # Check account type and assign status accordingly
-                                if ($row.service_account -like 'NT Service*' -or $row.service_account -eq 'LocalSystem' -or $row.service_account -eq 'LocalService' -or $row.service_account -eq 'NT AUTHORITY\NETWORK SERVICE') {
+                                if ($row.service_account -like 'NT Service*' -or
+                                    $row.service_account -eq 'LocalSystem' -or
+                                    $row.service_account -eq 'LocalService' -or
+                                    $row.service_account -eq 'NT AUTHORITY\NETWORK SERVICE') {
                                     $SQLServiceAccountsStatus = 'REVIEW'
                                 }
 
-                                # Append each service's details (SQL Server or SQL Agent)
-                                $SQLServiceAccountsDetails = "$($row.servicename) Account: $($row.service_account)"
-                                }
+                                $SQLServiceAccountsDetails += "$($row.servicename) Account: $($row.service_account)"
+                            }
+
+                            $SQLServiceAccountsDetailsText = $SQLServiceAccountsDetails -join "`r`n"
 
                             # Add new properties to result object
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Memory Status" -Value $memoryStatus
