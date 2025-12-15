@@ -22,7 +22,11 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
+<<<<<<< Updated upstream:SQL Server Best Practices Assessment v20.ps1
 # Last modified: 03/21/2025.
+=======
+# Last modified: 12/14/2025.
+>>>>>>> Stashed changes:SQL Server Best Practices Assessment v21.ps1
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
