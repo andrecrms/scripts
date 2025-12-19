@@ -23,7 +23,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 12/14/2025.
+# Last modified: 12/19/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -1009,6 +1009,14 @@ try {
                                 $compatLevels -join ', '
                             }
 
+							# Compatibility Level Status logic
+                            $compatibilityLevelStatus = if ($compatLevels.Count -gt 0) {
+                                "REVIEW"
+                            }
+                            else {
+                                "OK"
+                            }
+
                             # Checks for Auto Create Stats, Auto Update Stats, and Page Verify
                             $autoUpdateStatsDatabases = $compatResult | Where-Object { $_.'Auto Update Stats' -eq 0 }
                             $autoCreateStatsDatabases = $compatResult | Where-Object { $_.'Auto Create Stats' -eq 0 }
@@ -1031,14 +1039,6 @@ try {
 
                             # Database Options Status logic
                             $databaseOptionsStatus = if ($divergentDatabases.Count -gt 0) {
-                                "REVIEW"
-                            }
-                            else {
-                                "OK"
-                            }
-
-                            # Compatibility Level Status logic
-                            $compatibilityLevelStatus = if ($compatLevels.Count -gt 0) {
                                 "REVIEW"
                             }
                             else {
