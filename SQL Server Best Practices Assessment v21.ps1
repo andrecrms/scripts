@@ -1020,14 +1020,14 @@ try {
                             # Checks for Auto Create Stats, Auto Update Stats, and Page Verify
                             $autoUpdateStatsDatabases = $compatResult | Where-Object { $_.'Auto Update Stats' -eq 0 }
                             $autoCreateStatsDatabases = $compatResult | Where-Object { $_.'Auto Create Stats' -eq 0 }
-			    $autoShrink = $compatResult | Where-Object { $_.'Auto Shrink' -eq 1 }
+			    			$autoShrink = $compatResult | Where-Object { $_.'Auto Shrink' -eq 1 }
                             $pageVerifyDatabases = $compatResult | Where-Object { $_.'Page Verify' -ne "CHECKSUM" }
 
                             # List databases without proper settings
                             $divergentDatabases = @()
                             $divergentDatabases += $autoUpdateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Update Stats OFF)" }
                             $divergentDatabases += $autoCreateStatsDatabases | ForEach-Object { "$($_.'Database Name') (Auto Create Stats OFF)" }
-			    $divergentDatabases += $autoShrink | ForEach-Object { "$($_.'Database Name') (Auto Shrink ON)" }
+			   				$divergentDatabases += $autoShrink | ForEach-Object { "$($_.'Database Name') (Auto Shrink ON)" }
                             $divergentDatabases += $pageVerifyDatabases | ForEach-Object { "$($_.'Database Name') (Page Verify NOT CHECKSUM)" }
 
                             $divergentDatabasesMessage = if ($divergentDatabases.Count -eq 0) {
