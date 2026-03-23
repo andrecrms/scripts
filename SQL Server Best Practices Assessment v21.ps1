@@ -23,7 +23,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 12/19/2025.
+# Last modified: 03/23/2025.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -590,62 +590,103 @@ try {
                     Try {
                         #Write-Host "Running queries on: $sqlInstance"
 
+                        $invk = Get-Command Invoke-Sqlcmd -ErrorAction Stop
+                        $hasTSC     = $invk.Parameters.ContainsKey('TrustServerCertificate')
+                        $hasEncrypt = $invk.Parameters.ContainsKey('Encrypt')
+
+                        function Invoke-SqlcmdWithRetry {
+                            param (
+                                [string]$ServerInstance,
+                                [string]$Query,
+                                [string]$QueryName
+                            )
+
+                            $SqlcmdParams = @{
+                                ServerInstance = $ServerInstance
+                                Query          = $Query
+                                QueryTimeout   = 65535
+                                ErrorAction    = 'Stop'
+                            }
+
+                            if ($hasEncrypt) {
+                                $SqlcmdParams['Encrypt'] = 'Optional'
+                            }
+
+                            Try {
+                                return Invoke-Sqlcmd @SqlcmdParams
+                            }
+                            Catch {
+                                $errMsg = $_.Exception.Message
+
+                                if ($hasTSC -and (
+                                    $errMsg -match 'SSL Provider' -or
+                                    $errMsg -match 'target principal name is incorrect' -or
+                                    $errMsg -match 'certificate'
+                                )) {
+                                    #Write-Host "Retrying '$QueryName' on '$ServerInstance' with TrustServerCertificate"
+                                    $SqlcmdParams['TrustServerCertificate'] = $true
+                                    return Invoke-Sqlcmd @SqlcmdParams
+                                }
+                                else {
+                                    throw
+                                }
+                            }
+                        }
+
                         # Execute main config query
                         $currentQuery = "Main Query"
-                        $mainResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $mainQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $mainResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $mainQuery -QueryName $currentQuery
 
-                        #Execute the compatibility level query
+                        # Execute the compatibility level query
                         $currentQuery = "Compatibility Level Query"
-                        $compatResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $compatQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $compatResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $compatQuery -QueryName $currentQuery
 
                         # Execute the AutoGrow query
                         $currentQuery = "AutoGrow Query"
-                        $autoGrowResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $autoGrowQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $autoGrowResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $autoGrowQuery -QueryName $currentQuery
 
                         # Execute Trace Flag query
                         $currentQuery = "Trace Flag Query"
-                        $enabledFlags = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $traceflagquery -QueryTimeout 65535 -ErrorAction Stop
+                        $enabledFlags = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $traceflagquery -QueryName $currentQuery
 
                         # Execute CheckDB query
                         $currentQuery = "CheckDB Query"
-                        $checkDBResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $checkDBQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $checkDBResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $checkDBQuery -QueryName $currentQuery
 
                         # Execute VLFs query
                         $currentQuery = "VLFs Query"
-                        $vlfResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $vlfQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $vlfResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $vlfQuery -QueryName $currentQuery
 
                         # Execute Backup query
                         $currentQuery = "Backup Query"
-                        $backupResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $BkpQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $backupResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $BkpQuery -QueryName $currentQuery
 
                         # Execute MaxDop Query
                         $currentQuery = "MaxDop Query"
-                        $maxdopresult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $maxdopquery -QueryTimeout 65535 -ErrorAction Stop
+                        $maxdopresult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $maxdopquery -QueryName $currentQuery
 
                         # Execute TempDB Query
                         $currentQuery = "TempDB Query"
-                        $tempDBFileSizeResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $tempDBFileSizeQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $tempDBFileSizeResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $tempDBFileSizeQuery -QueryName $currentQuery
 
                         # Execute Query Store Query
                         $currentQuery = "Query Store Query"
-                        $QueryStoreResults = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $QueryStoreQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $QueryStoreResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $QueryStoreQuery -QueryName $currentQuery
 
                         # Execute ADR Query
                         $currentQuery = "ADR Query"
-                        $ADRQueryResults = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $ADRQuery -QueryTimeout 65535 -ErrorAction Stop
+                        $ADRQueryResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $ADRQuery -QueryName $currentQuery
 
-						# Execute Login/User Test Query
-						$currentQuery = "Login/User Test Query"
-						$loginUserTestResult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $loginUserTestQuery -QueryTimeout 65535 -ErrorAction Stop
+                        # Execute Login/User Test Query
+                        $currentQuery = "Login/User Test Query"
+                        $loginUserTestResult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $loginUserTestQuery -QueryName $currentQuery
 
-						# Execute query to detect SQL service accounts
+                        # Execute query to detect SQL service accounts
                         $currentQuery = "Detect SQL service accounts"
-                        $sqlaccountsresult = Invoke-Sqlcmd -ServerInstance $sqlInstance -Query $detectsqlaccounts -QueryTimeout 65535 -ErrorAction Stop
-
+                        $sqlaccountsresult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $detectsqlaccounts -QueryName $currentQuery
                     }
-                    Catch
-                    {
-                        Write-Host "Error executing '$currentQuery' on SQL instance '$sqlInstance'. Error: $_"
+                    Catch {
+                        Write-Host "Error executing '$currentQuery' on SQL instance '$sqlInstance'. Error: $($_.Exception.Message)"
 
                         # Assign empty arrays to prevent script failure due to missing results
                         $mainResult = @()
@@ -659,7 +700,8 @@ try {
                         $tempDBFileSizeResult = @()
                         $QueryStoreResults = @()
                         $ADRQueryResults = @()
-						$sqlaccountsresult = @()
+                        $loginUserTestResult = @()
+                        $sqlaccountsresult = @()
                     }
 
                     # Process MaxDOP Logic
