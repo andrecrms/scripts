@@ -23,7 +23,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 03/23/2026.
+# Last modified: 04/06/2026.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -127,13 +127,17 @@ SELECT
     MAX(CASE WHEN name = 'max server memory (MB)' THEN value_in_use END) AS [Max Server Memory (MB)],
     MAX(CASE WHEN name = 'optimize for ad hoc workloads' THEN value_in_use END) AS [Optimize for Ad Hoc Workloads],
     MAX(CASE WHEN name LIKE '%backup compression%' THEN value_in_use END) AS [Backup Compression Default],
-    MAX(CASE WHEN name = 'remote admin connections' THEN value_in_use END) AS [Remote Admin Connections]
+    MAX(CASE WHEN name = 'remote admin connections' THEN value_in_use END) AS [Remote Admin Connections],
+	MAX(CASE WHEN name = 'remote access' THEN value_in_use END) AS [Remote Access],
+	MAX(CASE WHEN name = 'xp_cmdshell' THEN value_in_use END) AS [xp_cmdshell]
 FROM sys.configurations
 WHERE name IN (
     'min server memory (MB)',
     'max server memory (MB)',
     'optimize for ad hoc workloads',
-    'remote admin connections'
+    'remote admin connections',
+	'remote access',
+	'xp_cmdshell'
 ) OR name LIKE '%backup compression%'
 "@
 
@@ -911,6 +915,8 @@ try {
                                     $result.'Backup Compression Default'
                                 }
                                 "Remote Admin Connections"                    = $result.'Remote Admin Connections'
+                                "Remote Access"                               = $result.'Remote Access'
+                                "xp_cmdshell"                                 = $result.'xp_cmdshell'
                                 "TempDB Data Files"                           = $result.'TempDB Data Files'
                                 "DBs with missing CHECKDB in the last 7 days" = $missingCheckDBMessage
                                 "CHECKDB Status"                              = $checkDBStatus
@@ -979,7 +985,6 @@ try {
                                 "No trace flags enabled"
                             }
 
-
                             # Calculate recommended max memory (75% of total server memory)
                             $recommendedMaxMemory = [math]::Round($result.'Total Server Memory (MB)' * 0.75, 0)
 
@@ -1010,13 +1015,18 @@ try {
                                 $result.'Optimize for Ad Hoc Workloads' -eq 0 -or
                                 $result.'Remote Admin Connections' -eq 0 -or
                                 # If Backup Compression is not null or empty and not set to the expected value, flag as REVIEW
-                                (![string]::IsNullOrEmpty($result.'Backup Compression Default') -and $result.'Backup Compression Default' -lt 1)
+                                (![string]::IsNullOrEmpty($result.'Backup Compression Default') -and $result.'Backup Compression Default' -lt 1) -or
+                                $result.'Remote Access' -eq 1 -or
+                                $result.'xp_cmdshell' -eq 1
                             ) {
                                 "REVIEW"
                             }
                             elseif ([string]::IsNullOrEmpty($result.'Backup Compression Default') -and
-                                $result.'Optimize for Ad Hoc Workloads' -ne 0 -and
-                                $result.'Remote Admin Connections' -ne 0) {
+                                $result.'Optimize for Ad Hoc Workloads' -ne 0 -and 
+                                $result.'Remote Admin Connections' -ne 1 -and
+                                $result.'Remote Access' -ne 1 -and
+                                $result.'xp_cmdshell' -ne 1
+                                ) {
                                 # If Backup Compression is null or empty and other settings are good, status is OK
                                 "OK"
                             }
@@ -1382,7 +1392,7 @@ $columnOrder = @(
     "Full Backup Status",
     "Log Backup Status",
 	"Login or User Test Status",
-    "SQL Service Accounts Status", 
+    "SQL Service Accounts Status",  
     "Total Server Memory (MB)",
     "Current Min Server Memory (MB)",
     "Recommended Min Server Memory (MB)",
@@ -1394,6 +1404,8 @@ $columnOrder = @(
     "Optimize for Ad Hoc Workloads",
     "Backup Compression Default",
     "Remote Admin Connections",
+    "Remote Access",
+    "xp_cmdshell",
     "Databases out of native compatibility",
     "Database Options Divergence",
     "Unlimited AutoGrow",
@@ -1407,7 +1419,7 @@ $columnOrder = @(
 	"Login and Users validation",  
     "Query Store Details",
     "ADR Details",
-	"SQL Service Accounts Details",
+    "SQL Service Accounts Details",
     "TempDB Data Files Count",
     "TempDB Data Files Size"
 )
