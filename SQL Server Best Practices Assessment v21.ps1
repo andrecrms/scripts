@@ -1,5 +1,3 @@
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
 # Define log file path with timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logFilePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Execution_Log_$timestamp.txt"
