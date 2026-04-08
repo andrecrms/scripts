@@ -1,3 +1,5 @@
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 # Define log file path with timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logFilePath = "C:\temp\SQL_Server_Best_Practices_Assessment_Execution_Log_$timestamp.txt"
@@ -23,7 +25,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 04/06/2026.
+# Last modified: 04/08/2026.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -680,9 +682,9 @@ try {
                         $currentQuery = "Query Store Query"
                         $QueryStoreResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $QueryStoreQuery -QueryName $currentQuery
 
-                        # Execute  Query
-                        $currentQuery = " Query"
-                        $QueryResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $Query -QueryName $currentQuery
+                        # Execute ADR Query
+                        $currentQuery = "ADR Query"
+                        $ADRQueryResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $ADRQuery -QueryName $currentQuery
 
                         # Execute Login/User Test Query
                         $currentQuery = "Login/User Test Query"
@@ -706,7 +708,7 @@ try {
                         $maxdopresult = @()
                         $tempDBFileSizeResult = @()
                         $QueryStoreResults = @()
-                        $QueryResults = @()
+                        $ADRQueryResults = @()
                         $loginUserTestResult = @()
                         $sqlaccountsresult = @()
                     }
