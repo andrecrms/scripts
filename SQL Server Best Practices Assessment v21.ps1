@@ -444,24 +444,24 @@ BEGIN
 END
 "@
 
-# ADR check
+# ADR Check
 $ADRQuery = @"
-DECLARE @major_version INT =
+DECLARE @major_version INT = 
     CAST(
         LEFT(
-            CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
+            CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)), 
             CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1
         ) AS INT
     );
 
 IF @major_version >= 15
 BEGIN
-    SELECT
+    SELECT 
         name AS database_name,
-        CASE is_accelerated_database_recovery_on
-            WHEN 1 THEN 'ON'
-            WHEN 0 THEN 'OFF'
-            ELSE 'UNKNOWN'
+        CASE is_accelerated_database_recovery_on 
+            WHEN 1 THEN 'ON' 
+            WHEN 0 THEN 'OFF' 
+            ELSE 'UNKNOWN' 
         END AS status
     FROM sys.databases
     WHERE database_id > 4
@@ -469,7 +469,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    SELECT
+    SELECT 
         'ADR does not exist in SQL Server versions earlier than 15 (SQL Server 2019).' AS message;
 END;
 "@
@@ -1189,30 +1189,26 @@ try {
 
                             # ADR Check
                             $ADRRows = @($ADRQueryResults)
-
                             if ($ADRRows.Count -eq 0 -or $null -eq $ADRRows[0]) {
                                 $ADRStatus  = "REVIEW"
                                 $ADRDetails = "ADR query returned no rows."
                             }
+                            # Check if the "message" column exists (indicating older SQL version)
                             elseif ($ADRRows[0].PSObject.Properties.Match('message').Count -gt 0) {
                                 $ADRStatus  = "OK"
                                 $ADRDetails = $ADRRows[0].message
                             }
                             else {
-                                $ADRDetails = ($ADRRows | Select-Object -ExpandProperty database_name |
-                                    ForEach-Object {
-                                        $dbName = $_
-                                        $row = $ADRRows | Where-Object { $_.database_name -eq $dbName } | Select-Object -First 1
-                                        "$($row.database_name) $($row.status)"
-                                    }) -join ", "
+                                # 3. Format the Details String
+                                # Efficiently join the database names and their statuses
+                                $ADRDetails = ($ADRRows | ForEach-Object { "$($_.database_name): $($_.status)" }) -join ", "
 
-                                $hasOn  = ($ADRRows | Where-Object { $_.status -eq 'ON' }).Count -gt 0
-                                $hasOff = ($ADRRows | Where-Object { $_.status -eq 'OFF' }).Count -gt 0
+                                # 4. Determine Status
+                                # Use @() to ensure .Count works even if only one database is returned
+                                $hasOff = @($ADRRows | Where-Object { $_.status -eq 'OFF' }).Count -gt 0
+                                $hasUnknown = @($ADRRows | Where-Object { $_.status -eq 'UNKNOWN' }).Count -gt 0
 
-                                if ($hasOn -and $hasOff) {
-                                    $ADRStatus = "REVIEW"
-                                }
-                                elseif ($hasOff) {
+                                if ($hasOff -or $hasUnknown) {
                                     $ADRStatus = "REVIEW"
                                 }
                                 else {
