@@ -444,29 +444,32 @@ END
 
 # ADR check
 $ADRQuery = @"
-DECLARE @major_version INT = CAST(LEFT(CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
-                               CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1) AS INT);
+DECLARE @major_version INT =
+    CAST(
+        LEFT(
+            CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
+            CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1
+        ) AS INT
+    );
 
 IF @major_version >= 15
 BEGIN
-    DECLARE @sql NVARCHAR(MAX) = N'
     SELECT
         name AS database_name,
-        is_accelerated_database_recovery_on,
         CASE is_accelerated_database_recovery_on
-            WHEN 1 THEN ''ENABLED''
-            WHEN 0 THEN ''DISABLED''
-            ELSE ''UNKNOWN''
+            WHEN 1 THEN 'ON'
+            WHEN 0 THEN 'OFF'
+            ELSE 'UNKNOWN'
         END AS status
     FROM sys.databases
-    WHERE database_id NOT IN (1,2,3,4);  -- exclude system DBs
-    ';
-    EXEC sp_executesql @sql;
+    WHERE database_id > 4
+    ORDER BY name;
 END
 ELSE
 BEGIN
-    SELECT 'This SQL version does not have Accelerated Database Recovery feature available' AS message;
-END
+    SELECT
+        'ADR does not exist in SQL Server versions earlier than 15 (SQL Server 2019).' AS message;
+END;
 "@
 
 # Login/User Test query
@@ -677,9 +680,9 @@ try {
                         $currentQuery = "Query Store Query"
                         $QueryStoreResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $QueryStoreQuery -QueryName $currentQuery
 
-                        # Execute ADR Query
-                        $currentQuery = "ADR Query"
-                        $ADRQueryResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $ADRQuery -QueryName $currentQuery
+                        # Execute  Query
+                        $currentQuery = " Query"
+                        $QueryResults = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $Query -QueryName $currentQuery
 
                         # Execute Login/User Test Query
                         $currentQuery = "Login/User Test Query"
@@ -703,7 +706,7 @@ try {
                         $maxdopresult = @()
                         $tempDBFileSizeResult = @()
                         $QueryStoreResults = @()
-                        $ADRQueryResults = @()
+                        $QueryResults = @()
                         $loginUserTestResult = @()
                         $sqlaccountsresult = @()
                     }
@@ -1183,32 +1186,36 @@ try {
                             }
 
                             # ADR Check
-                            if ($ADRQueryResults -and $ADRQueryResults.Count -gt 0) {
-                                # Case: SQL version does not support ADR
-                                if ($ADRQueryResults[0].PSObject.Properties.Name -contains "message" -and
-                                    $ADRQueryResults[0].message -like "*feature available*") {
+                            $ADRRows = @($ADRQueryResults)
 
-                                    $ADRStatus = "OK"
-                                    $ADRDetails = "This SQL version does not have Accelerated Database Recovery feature available"
-                                }
-                                else {
-                                    # Format all database ADR statuses
-                                    $ADRDetails = ($ADRQueryResults | ForEach-Object {
-                                        "$($_.database_name): $($_.status)"
-                                    }) -join ", "
-
-                                    # REVIEW if any database has DISABLED status
-                                    if ($ADRQueryResults | Where-Object { $_.status -eq "DISABLED" }) {
-                                        $ADRStatus = "REVIEW"
-                                    }
-                                    else {
-                                        $ADRStatus = "OK"
-                                    }
-                                }
+                            if ($ADRRows.Count -eq 0 -or $null -eq $ADRRows[0]) {
+                                $ADRStatus  = "REVIEW"
+                                $ADRDetails = "ADR query returned no rows."
+                            }
+                            elseif ($ADRRows[0].PSObject.Properties.Match('message').Count -gt 0) {
+                                $ADRStatus  = "OK"
+                                $ADRDetails = $ADRRows[0].message
                             }
                             else {
-                                $ADRStatus = "OK"
-                                $ADRDetails = "This SQL version does not have Accelerated Database Recovery feature available"
+                                $ADRDetails = ($ADRRows | Select-Object -ExpandProperty database_name |
+                                    ForEach-Object {
+                                        $dbName = $_
+                                        $row = $ADRRows | Where-Object { $_.database_name -eq $dbName } | Select-Object -First 1
+                                        "$($row.database_name) $($row.status)"
+                                    }) -join ", "
+
+                                $hasOn  = ($ADRRows | Where-Object { $_.status -eq 'ON' }).Count -gt 0
+                                $hasOff = ($ADRRows | Where-Object { $_.status -eq 'OFF' }).Count -gt 0
+
+                                if ($hasOn -and $hasOff) {
+                                    $ADRStatus = "REVIEW"
+                                }
+                                elseif ($hasOff) {
+                                    $ADRStatus = "REVIEW"
+                                }
+                                else {
+                                    $ADRStatus = "OK"
+                                }
                             }
 
                             #TempDB checks
