@@ -2,7 +2,7 @@
 
 Hello! I will use this repo to insert some SQL and Powershell scripts. 
 
-**04/08/2026:**
+**05/11/2026:**
 
 The first PowerShell script I uploaded is called **SQL Server Best Practices Assessment v21.ps1** (https://github.com/andrecrms/scripts/blob/PowerShell-Scripts/SQL%20Server%20Best%20Practices%20Assessment%20v21.ps1). It can be used to perform a quick check against some best practices in your current SQL Server environment, some of the checks include:
 
@@ -32,6 +32,7 @@ The first PowerShell script I uploaded is called **SQL Server Best Practices Ass
 15. Logins and Users with word "test" checks, the script will check all logins and users with the word "test", if any exists the status column will be marked as REVIEW and all of them (logins/users) will be listed.
 16. If SQL Server Service account or SQL Agent account are running using Local Service, Local System or NT SERVICE, if yes, then the status column will be marked as REVIEW.
 17. Added checks for 'Remote Access' and 'xp_cmdshell', when Remote Access is enabled or xp_cmdshell, then config column status will be marked as REVIEW.
+18. Check whether SQL Server is part of an Always On topology and list the servers involved.
 
 **Tested on: SQL Server 2019 to 2025.**
     
