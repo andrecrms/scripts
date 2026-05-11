@@ -11,8 +11,7 @@ Write-Host @"
 #============================================================================================================================================================================================
 # This script checks some SQL Server best practices, running it and understanding the results is for those who have been working with the product for some time.
 # It can be run locally or remotely against server names inside a serverlist txt file, establishes remote sessions and executes several SQL queries to evaluate the following best practices:
-# Instance settings, checkdb history, backup history, VLFs, autogrowth, trace flags, tempdb file checks, logins and users with word "test", check if SQL Service accounts are running with local
-# system, local service or nt service, check database options and check compatibility levels.
+# Instance settings, checkdb history, backup history, VLFs, autogrowth, trace flags, tempdb file checks,logins and users with word "test", database options, Always On and compatibility levels.
 # This script uses some queries from the BPCheck script to evaluate some best practices: https://github.com/microsoft/tigertoolbox/tree/master/BPCheck
 # A quick summary of the findings will be presented at the end of the script, but all detailed results will be placed in a CSV file.
 # Each status column will be either OK or REVIEW, when marked as REVIEW, navigate to the right of the sheet to understand why it was marked that way.
@@ -23,7 +22,7 @@ Write-Host @"
 # LinkedIn: https://www.linkedin.com/in/andre-c-rodrigues
 # Blog: http://sqlmagu.blogspot.com.br
 # GitHub: https://github.com/andrecrms
-# Last modified: 04/08/2026.
+# Last modified: 05/11/2026.
 =============================================================================================================================================================================================
 "@ -ForegroundColor Yellow
 Write-Host @"
@@ -148,10 +147,10 @@ SELECT
     d.compatibility_level AS [Compatibility Level],
     d.is_auto_update_stats_on AS [Auto Update Stats],
     d.is_auto_create_stats_on AS [Auto Create Stats],
-    d.is_auto_shrink_on AS [Auto Shrink],
-    d.page_verify_option_desc AS [Page Verify]
+    d.page_verify_option_desc AS [Page Verify],
+	d.is_auto_shrink_on AS [Auto Shrink]
 FROM sys.databases d
-WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('tempdb', 'model', 'msdb')
+WHERE d.state_desc = 'ONLINE' AND d.name NOT IN ('master', 'tempdb', 'model', 'msdb')
 "@
 
 # AutoGrow query
@@ -258,17 +257,15 @@ CREATE TABLE #VLFInfo (
     DatabaseName SYSNAME,
     VLFCount INT
 );
-
 DECLARE @dbName SYSNAME, @sql NVARCHAR(MAX);
-
 DECLARE db_cursor CURSOR FOR
 SELECT name
-FROM sys.databases
-WHERE state_desc = 'ONLINE' AND name not in ('master','model','msdb','tempdb');
-
+FROM sys.databases d
+WHERE state_desc = 'ONLINE'
+  AND name NOT IN ('master','model','msdb','tempdb')
+  AND DATABASEPROPERTYEX(name, 'Updateability') = 'READ_WRITE';
 OPEN db_cursor;
 FETCH NEXT FROM db_cursor INTO @dbName;
-
 WHILE @@FETCH_STATUS = 0
 BEGIN
     -- Build dynamic SQL to count VLFs per database using sys.dm_db_log_info
@@ -277,21 +274,16 @@ BEGIN
         INSERT INTO #VLFInfo (DatabaseName, VLFCount)
         SELECT ''' + @dbName + N''', COUNT(*)
         FROM sys.dm_db_log_info(DB_ID());';
-
     EXEC sp_executesql @sql;
-
     FETCH NEXT FROM db_cursor INTO @dbName;
 END
-
 CLOSE db_cursor;
 DEALLOCATE db_cursor;
-
 -- Retrieve databases with more than 1000 VLFs
 SELECT DatabaseName, VLFCount
 FROM #VLFInfo
 WHERE VLFCount > 1000
 ORDER BY VLFCount DESC;
-
 -- Drop temporary table after use
 DROP TABLE #VLFInfo;
 "@
@@ -394,12 +386,10 @@ WHERE database_id = DB_ID('tempdb');
 $QueryStoreQuery = @"
 DECLARE @major_version INT = CAST(LEFT(CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
                                CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1) AS INT);
-
 IF @major_version >= 13
 BEGIN
     IF OBJECT_ID('tempdb..#QueryStoreStatus') IS NOT NULL
         DROP TABLE #QueryStoreStatus;
-
     CREATE TABLE #QueryStoreStatus (
         database_name SYSNAME,
         query_store_status NVARCHAR(60),
@@ -407,9 +397,7 @@ BEGIN
         query_capture_mode_desc NVARCHAR(20),
         sql_major_version INT
     );
-
     DECLARE @sql NVARCHAR(MAX) = N'';
-
     SELECT @sql += '
     IF DB_ID(N''' + name + ''') IS NOT NULL
     BEGIN
@@ -430,10 +418,10 @@ BEGIN
     END;
     '
     FROM sys.databases
-    WHERE database_id NOT IN (1,2,3);  -- exclude system DBs
-
+    WHERE database_id NOT IN (1,2,3)
+      AND state_desc = 'ONLINE'
+      AND DATABASEPROPERTYEX(name, 'Updateability') = 'READ_WRITE';
     EXEC sp_executesql @sql;
-
     SELECT * FROM #QueryStoreStatus ORDER BY database_name;
 END
 ELSE
@@ -442,24 +430,24 @@ BEGIN
 END
 "@
 
-# ADR Check
+#ADR Check
 $ADRQuery = @"
-DECLARE @major_version INT = 
+DECLARE @major_version INT =
     CAST(
         LEFT(
-            CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)), 
+            CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20)),
             CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR(20))) - 1
         ) AS INT
     );
 
 IF @major_version >= 15
 BEGIN
-    SELECT 
+    SELECT
         name AS database_name,
-        CASE is_accelerated_database_recovery_on 
-            WHEN 1 THEN 'ON' 
-            WHEN 0 THEN 'OFF' 
-            ELSE 'UNKNOWN' 
+        CASE is_accelerated_database_recovery_on
+            WHEN 1 THEN 'ON'
+            WHEN 0 THEN 'OFF'
+            ELSE 'UNKNOWN'
         END AS status
     FROM sys.databases
     WHERE database_id > 4
@@ -467,7 +455,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    SELECT 
+    SELECT
         'ADR does not exist in SQL Server versions earlier than 15 (SQL Server 2019).' AS message;
 END;
 "@
@@ -475,14 +463,12 @@ END;
 # Login/User Test query
 $loginUserTestQuery = @"
 DECLARE @dbname sysname;
-
 CREATE TABLE #TestPrincipals
 (
     PrincipalType NVARCHAR(10),
     PrincipalName sysname,
     DatabaseName  sysname NULL
 );
-
 -- 1. Logins with 'test' in the name
 INSERT INTO #TestPrincipals (PrincipalType, PrincipalName, DatabaseName)
 SELECT
@@ -493,21 +479,18 @@ FROM sys.server_principals AS sp
 WHERE sp.name LIKE '%test%'
   AND sp.type IN ('S','U','G')       -- SQL login, Windows login, Windows group
   AND sp.name NOT LIKE '##%';        -- skip system auto-created logins
-
 -- 2. Users with 'test' in the name across databases
 DECLARE db_cursor CURSOR FAST_FORWARD FOR
     SELECT name
     FROM sys.databases
     WHERE state_desc = 'ONLINE'
-      AND database_id > 4;           -- exclude system dbs; adjust if you want master/msdb etc.
-
+      AND database_id > 4
+      AND DATABASEPROPERTYEX(name, 'Updateability') = 'READ_WRITE';
 OPEN db_cursor;
 FETCH NEXT FROM db_cursor INTO @dbname;
-
 WHILE @@FETCH_STATUS = 0
 BEGIN
     DECLARE @sql NVARCHAR(MAX);
-
     SET @sql = N'
         INSERT INTO #TestPrincipals (PrincipalType, PrincipalName, DatabaseName)
         SELECT
@@ -519,33 +502,49 @@ BEGIN
           AND dp.type IN (''S'',''U'',''G'')
           AND dp.principal_id > 4;   -- skip dbo, guest, sys users
     ';
-
     EXEC (@sql);
-
     FETCH NEXT FROM db_cursor INTO @dbname;
 END
-
 CLOSE db_cursor;
 DEALLOCATE db_cursor;
-
 SELECT
     PrincipalType,
     PrincipalName,
     DatabaseName
 FROM #TestPrincipals;
-
 DROP TABLE #TestPrincipals;
 "@
 
 # Query to detect SQL service accounts
 $detectsqlaccounts = @"
-SELECT 
+SELECT
     servicename,
     service_account
 FROM sys.dm_server_services
-WHERE 
-servicename like ('SQL Server%') 
+WHERE
+servicename like ('SQL Server%')
 or servicename like ('SQL Server Agent%');
+"@
+
+$alwaysonquery = @"
+SELECT ISNULL(
+    (
+        SELECT STUFF((
+            SELECT ' | ' + ag.name + ': ' +
+                STUFF((
+                    SELECT ', ' + ar.replica_server_name
+                    FROM   sys.availability_replicas ar
+                    WHERE  ar.group_id = ag.group_id
+                    ORDER  BY ar.replica_server_name
+                    FOR XML PATH(''), TYPE
+                ).value('.', 'NVARCHAR(MAX)'), 1, 2, '')
+            FROM sys.availability_groups ag
+            ORDER BY ag.name
+            FOR XML PATH(''), TYPE
+        ).value('.', 'NVARCHAR(MAX)'), 1, 3, '')
+    ),
+    'NO'
+) AS AlwaysOnDetails;
 "@
 
 # Loop through each instance and execute the queries
@@ -691,6 +690,10 @@ try {
                         # Execute query to detect SQL service accounts
                         $currentQuery = "Detect SQL service accounts"
                         $sqlaccountsresult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $detectsqlaccounts -QueryName $currentQuery
+
+                        # Execute query to detect SQL service accounts
+                        $currentQuery = "Check Always On"
+                        $alwaysonresult = Invoke-SqlcmdWithRetry -ServerInstance $sqlInstance -Query $alwaysonquery -QueryName $currentQuery
                     }
                     Catch {
                         Write-Host "Error executing '$currentQuery' on SQL instance '$sqlInstance'. Error: $($_.Exception.Message)"
@@ -709,6 +712,7 @@ try {
                         $ADRQueryResults = @()
                         $loginUserTestResult = @()
                         $sqlaccountsresult = @()
+                        $alwaysonresult = @()
                     }
 
                     # Process MaxDOP Logic
@@ -876,7 +880,7 @@ try {
 					if ([string]::IsNullOrEmpty($loginUserTestValidation)) {
 						$loginUserTestValidation = "No logins or users with 'test' found"
 					}
-					
+
                      # Process the main query results
                     if (($mainResult -ne $null -and $mainResult.Count -gt 0) -or
                         ($compatResult -ne $null -and $compatResult.Count -gt 0) -or
@@ -1025,7 +1029,7 @@ try {
                                 "REVIEW"
                             }
                             elseif ([string]::IsNullOrEmpty($result.'Backup Compression Default') -and
-                                $result.'Optimize for Ad Hoc Workloads' -ne 0 -and 
+                                $result.'Optimize for Ad Hoc Workloads' -ne 0 -and
                                 $result.'Remote Admin Connections' -ne 1 -and
                                 $result.'Remote Access' -ne 1 -and
                                 $result.'xp_cmdshell' -ne 1
@@ -1276,7 +1280,7 @@ try {
 							# SQL service accounts checks
                             foreach ($row in $sqlaccountsresult) {
                                 $SQLServiceAccountsStatus = 'OK'
-    
+
                                 if ($row.service_account -like 'NT Service*' -or
                                     $row.service_account -eq 'LocalSystem' -or
                                     $row.service_account -eq 'LocalService' -or
@@ -1288,6 +1292,15 @@ try {
                             }
 
                             $SQLServiceAccountsDetailsText = $SQLServiceAccountsDetails -join "`r`n"
+
+                            # Always On checks
+                            $alwaysOnDetails = if ($alwaysonresult -and $alwaysonresult.AlwaysOnDetails) {
+                                $alwaysonresult.AlwaysOnDetails
+                            } else {
+                                "NO"
+                            }
+
+                            $alwaysOnStatus = if ($alwaysOnDetails -eq "NO") { "REVIEW" } else { "OK" }
 
                             # Add new properties to result object
                             $resultObject | Add-Member -MemberType NoteProperty -Name "Memory Status" -Value $memoryStatus
@@ -1320,8 +1333,10 @@ try {
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Status" -Value $tempDBStatus
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Count" -Value $totalTempDBDataFiles
                             $resultObject | Add-Member -MemberType NoteProperty -Name "TempDB Data Files Size" -Value $tempDBUniformSize
-							$resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Status" -Value $SQLServiceAccountsStatus
-                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Details" -Value $SQLServiceAccountsDetails
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Status" -Value $SQLServiceAccountsStatus
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "SQL Service Accounts Details" -Value $SQLServiceAccountsDetails.TrimEnd(" | ")
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "Always On Status" -Value $alwaysOnStatus
+                            $resultObject | Add-Member -MemberType NoteProperty -Name "Always On Details" -Value $alwaysOnDetails
 
                             # Add to jobResults
                             $jobResults += $resultObject
@@ -1380,6 +1395,8 @@ $columnOrder = @(
     "SQL Server Version",
     "SQL Build Number",
     "SQL Edition",
+    "Always On Status",
+    "Always On Details",
     "Memory Status",
     "Config Status",
     "MaxDop Status",
@@ -1395,7 +1412,7 @@ $columnOrder = @(
     "Full Backup Status",
     "Log Backup Status",
 	"Login or User Test Status",
-    "SQL Service Accounts Status",  
+    "SQL Service Accounts Status",
     "Total Server Memory (MB)",
     "Current Min Server Memory (MB)",
     "Recommended Min Server Memory (MB)",
@@ -1419,7 +1436,7 @@ $columnOrder = @(
     "DBs with too many VLFs",
     "DBs missing Full Backup in the last 7 days",
     "DBs missing Log Backup (With full rec model)",
-	"Login and Users validation",  
+	"Login and Users validation",
     "Query Store Details",
     "ADR Details",
     "SQL Service Accounts Details",
@@ -1445,9 +1462,10 @@ $uniqueResults | Export-Csv -Path $filePath -NoTypeInformation
 Write-Host "Generating Summary of Assessment Results..."
 
 # Define columns that contain status checks
-$statusColumns = @("Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "Auto Growth Status",
+$statusColumns = @("Always On Status", "Memory Status", "Config Status", "MaxDop Status", "Query Store Status", "Auto Growth Status",
     "Database Options Status", "Compatibility Level Status", "Trace Flag Status", "CHECKDB Status",
-    "VLF Status", "Full Backup Status", "Log Backup Status", "ADR Status", "SQL Service Accounts Status", "Login or User Test Status", "TempDB Status")
+    "VLF Status", "Full Backup Status", "Log Backup Status", "ADR Status", "SQL Service Accounts Status",
+    "Login or User Test Status", "TempDB Status")
 
 # Initialize counters per column
 $statusSummary = @{}
